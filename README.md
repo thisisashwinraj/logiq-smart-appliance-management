@@ -2,7 +2,7 @@
 
 Managing home appliances often involves juggling manuals, service calls and scattered records — a highly frustrating experience for many homeowners. With the rise of Agentic AI design framework, there's an opportunity to streamline and improve this process aptly through intelligent systems that can understand, guide, and act on behalf of the users.
 
-This project showcases LogIQ - a fictional home appliance manufacturer that offers an AI-powered application to help customers seamlessly manage their household devices. At the core of the app is a smart assistant—an  AI chatbot that helps users manage their registered appliances, raise service requests, and look up information about appliance care and maintenance. The chatbot integrates seamlessly with the app, allowing users to interact with its features manually through the interface or switch to **AI mode** for a guided, chat-based experience. Watch the Customer App demo [here](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/tree/main?tab=readme-ov-file#demo)
+This project showcases LogIQ - a fictional home appliance manufacturer that offers an AI-powered application to help customers seamlessly manage their household devices. At the core of the app is a smart assistant—an  AI chatbot that helps users manage their registered appliances, raise service requests, and look up information about appliance care and maintenance. The chatbot integrates seamlessly with the app, allowing users to interact with its features manually through the interface or switch to **AI mode** for a guided, chat-based experience. Watch the Customer App demo [here](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/tree/main?tab=readme-ov-file#screenshots)
 
 ## Customer App Features
 
@@ -50,10 +50,6 @@ LogIQ's customer agent is a multi-agent system designed to streamline home appli
     - **Streamlit:** Python-based frontend with support for custom components, & CSS to enhance the user interface
     - **Brevo:** Sends automated transactional and notification emails—such as service confirmations, and reminders
     - **Twilio:** For delivering realtime SMS alert to users about service status updates, and engineer visit notification
-
-## Demo
-
-Insert gif or link to demo
 
 ## Data Sources
 The appliance dataset used in this project is entirely synthetic and was generated for demonstration purposes. Brand names, descriptions, and other technical specifications were fabricated using **Gemini 2.5** to simulate realistic product metadata across various categories such as refrigerators, washers & dryers, gas ranges and microwave ovens. Such an approach allowed for consistent, & scalable data creation without relying on any proprietary or sensitive information.
