@@ -2,7 +2,7 @@
 
 Managing home appliances often involves juggling manuals, service calls and scattered records — a highly frustrating experience for many homeowners. With the rise of Agentic AI design framework, there's an opportunity to streamline and improve this process aptly through intelligent systems that can understand, guide, and act on behalf of the users.
 
-This project showcases LogIQ - a fictional home appliance manufacturer that offers an AI-powered application to help customers seamlessly manage their household devices. At the core of the app is a smart assistant—an  AI chatbot that helps users manage their registered appliances, raise service requests, and look up information about appliance care and maintenance. The chatbot integrates seamlessly with the app, allowing users to interact with its features manually through the interface or switch to **AI mode** for a guided, chat-based experience. Watch the Customer App demo [here](https://google.com)
+This project showcases LogIQ - a fictional home appliance manufacturer that offers an AI-powered application to help customers seamlessly manage their household devices. At the core of the app is a smart assistant—an  AI chatbot that helps users manage their registered appliances, raise service requests, and look up information about appliance care and maintenance. The chatbot integrates seamlessly with the app, allowing users to interact with its features manually through the interface or switch to **AI mode** for a guided, chat-based experience. Watch the Customer App demo [here](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/edit/main/README.md#demo)
 
 ## Customer App Features
 
@@ -13,6 +13,8 @@ The web app is a **smart home appliance management platform** designed to stream
 - **View Appliances Details:** Access centralized view of all registered appliances with warranty, specs & support info
 - **View Service Requests Status:** Track ongoing and past service requests, including live status & engineer details
 - **Manage Customer Profile:** Edit & update customer information, including contact details and service preferences
+
+![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/logiq_home_1.PNG)
 
 ## Customer Agent Features
 
@@ -25,6 +27,8 @@ LogIQ's customer agent is a multi-agent system designed to streamline home appli
 - **register_onsite_service_request_agent**: Facilitates the scheduling of appliance repair and onsite maintenance visit
 - **service_requests_agent:** Fetches the status and history of the user’s service requests, including engineer's activity
 - **update_customer_profile_agent:** Helps update customer's profile including their name, contact details & address
+
+![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/chat/appliance_troubleshooting/chat_appliance_troubleshooting_1.PNG)
 
 ## Tech Stack
 
@@ -67,7 +71,31 @@ For implementing **Retrieval-Augmented Generation (RAG)** workflow, publicly ava
 
 ## Screenshots
 
-![App Screenshot](https://via.placeholder.com/468x300?text=App+Screenshot+Here)
+#### 1. Appliance Registration Agent Flow
+
+![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/chat/appliance_registration/chat_register_appliance_1.PNG)
+
+![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/chat/appliance_registration/chat_register_appliance_2.PNG)
+
+![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/chat/appliance_registration/chat_register_appliance_3.PNG)
+
+![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/chat/appliance_registration/chat_register_appliance_4.PNG)
+
+![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/chat/appliance_registration/registered_appliance_on_dashboard.PNG)
+
+<HR>
+
+#### 2. Product Enquiry Agent Flow
+
+![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/chat/product_enquiry/chat_product_enquiry_1.PNG)
+
+![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/chat/product_enquiry/chat_product_enquiry_2.PNG)
+
+![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/chat/product_enquiry/chat_product_enquiry_3.PNG)
+
+![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/chat/product_enquiry/chat_product_enquiry_4.PNG)
+
+![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/chat/product_enquiry/chat_product_enquiry_5.PNG)
 
 ## Authors
 - [Ashwin Raj (@thisisashwinraj)](https://www.github.com/thisisashwinraj)
