@@ -1,0 +1,56 @@
+import warnings
+from typing import Optional
+from datetime import datetime
+
+from google.genai import types
+from google.adk.agents import Agent
+from google.adk.agents.callback_context import CallbackContext
+
+from ...config import MODEL_NAME, MODEL_MAX_TOKENS, MODEL_TEMPERATURE
+from .prompts import ONSITE_SERVICE_REQUEST_REGISTRATION_AGENT_INSTRUCTIONS
+
+from ...tools.customer_agent_tools import (
+    get_all_customer_appliances_tool,
+    register_onsite_service_request_tool,
+)
+
+warnings.filterwarnings("ignore")
+
+
+def before_agent_callback(callback_context: CallbackContext) -> Optional[types.Content]:
+    """
+    Simple callback that logs when the agent starts processing a request
+    and initializes agent specific states.
+
+    Args:
+        callback_context: Contains state and context information
+
+    Returns:
+        None to continue with normal agent processing
+    """
+    state = callback_context.state
+
+    if "start_time" not in state:
+        state["start_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    return None
+
+
+register_onsite_service_request_agent = Agent(
+    name="register_onsite_service_request_agent",
+    model=MODEL_NAME,
+    description="""
+    Agent to help customers register a new onsite service request ticket.
+    """,
+    instruction=ONSITE_SERVICE_REQUEST_REGISTRATION_AGENT_INSTRUCTIONS,
+    include_contents="default",
+    generate_content_config=types.GenerateContentConfig(
+        temperature=MODEL_TEMPERATURE,
+        max_output_tokens=MODEL_MAX_TOKENS,
+    ),
+    tools=[
+        get_all_customer_appliances_tool,
+        register_onsite_service_request_tool,
+    ],
+    before_agent_callback=before_agent_callback,
+)
