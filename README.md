@@ -97,6 +97,8 @@ For implementing **Retrieval-Augmented Generation (RAG)** workflow, publicly ava
 
 ![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/chat/product_enquiry/chat_product_enquiry_5.PNG)
 
+To view the example screenshots of all the agents, click [here](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/tree/main/assets/screenshots/chat)
+
 ## Authors
 - [Ashwin Raj (@thisisashwinraj)](https://www.github.com/thisisashwinraj)
 
