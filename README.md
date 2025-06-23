@@ -2,7 +2,7 @@
 
 Managing home appliances often involves juggling manuals, service calls and scattered records — a highly frustrating experience for many homeowners. With the rise of Agentic AI design framework, there's an opportunity to streamline and improve this process aptly through intelligent systems that can understand, guide, and act on behalf of the users.
 
-This project showcases LogIQ - a fictional home appliance manufacturer that offers an AI-powered application to help customers seamlessly manage their household devices. At the core of the app is a smart assistant—an  AI chatbot that helps users manage their registered appliances, raise service requests, and look up information about appliance care and maintenance. The chatbot integrates seamlessly with the app, allowing users to interact with its features manually through the interface or switch to **AI mode** for a guided, chat-based experience. Watch the Customer App demo [here](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/edit/main/README.md#demo)
+This project showcases LogIQ - a fictional home appliance manufacturer that offers an AI-powered application to help customers seamlessly manage their household devices. At the core of the app is a smart assistant—an  AI chatbot that helps users manage their registered appliances, raise service requests, and look up information about appliance care and maintenance. The chatbot integrates seamlessly with the app, allowing users to interact with its features manually through the interface or switch to **AI mode** for a guided, chat-based experience. Watch the Customer App demo [here](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/tree/main?tab=readme-ov-file#demo)
 
 ## Customer App Features
 
