@@ -14,6 +14,7 @@ from ...tools.customer_agent_tools import (
     get_service_request_details_tool,
     update_service_request_details_tool,
     delete_service_request_tool,
+    get_all_service_requests_briefs_callback_func,
 )
 
 warnings.filterwarnings("ignore")
@@ -24,7 +25,7 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
 
     if "customer_service_requests" not in state:
         try:
-            service_requests = get_all_service_requests_briefs_tool(
+            service_requests = get_all_service_requests_briefs_callback_func(
                 customer_id=callback_context.state["customer_id"],
                 limit=-1,
             )
@@ -37,6 +38,9 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
 
     if "start_time" not in state:
         state["start_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if "current_date" not in state:
+        state["current_date"] = datetime.now().strftime("%Y-%m-%d")
 
     return None
 

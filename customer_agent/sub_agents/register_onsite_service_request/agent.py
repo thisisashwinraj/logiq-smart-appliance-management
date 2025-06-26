@@ -11,7 +11,11 @@ from .prompts import ONSITE_SERVICE_REQUEST_REGISTRATION_AGENT_INSTRUCTIONS
 
 from ...tools.customer_agent_tools import (
     get_all_customer_appliances_tool,
-    register_onsite_service_request_tool,
+    get_customer_address_tool,
+    get_customer_email_tool, 
+    get_customer_phone_number_tool, 
+    register_onsite_service_request_tool, 
+    validate_and_format_address_tool, 
 )
 
 warnings.filterwarnings("ignore")
@@ -32,6 +36,9 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
 
     if "start_time" not in state:
         state["start_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    if "current_date" not in state:
+        state["current_date"] = datetime.now().strftime("%Y-%m-%d")
 
     return None
 
@@ -49,8 +56,12 @@ register_onsite_service_request_agent = Agent(
         max_output_tokens=MODEL_MAX_TOKENS,
     ),
     tools=[
-        get_all_customer_appliances_tool,
-        register_onsite_service_request_tool,
+        get_all_customer_appliances_tool, 
+        get_customer_address_tool, 
+        get_customer_email_tool, 
+        get_customer_phone_number_tool, 
+        register_onsite_service_request_tool, 
+        validate_and_format_address_tool, 
     ],
     before_agent_callback=before_agent_callback,
 )

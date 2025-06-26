@@ -1,6 +1,7 @@
 import time
 import json
 import base64
+import warnings
 import numpy as np
 import pandas as pd
 
@@ -43,6 +44,9 @@ st.set_page_config(
     initial_sidebar_state="expanded",
     layout="wide",
 )
+
+warnings.filterwarnings("ignore")
+
 
 st.markdown(
     """
@@ -2045,7 +2049,7 @@ if __name__ == "__main__":
 
                                         st.markdown(
                                             f"""
-                                            <P class="p-service-request-request-id-serial-number">
+                                            <P >
                                                 {service_request.get('appliance_details').get('sub_category')} • {service_request.get('request_id')}
                                             </P>
                                             """,

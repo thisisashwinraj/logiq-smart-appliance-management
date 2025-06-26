@@ -33,11 +33,11 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
     """
     state = callback_context.state
 
-    timestamp = datetime.now()
-    state["request_start_time"] = timestamp
+    if "start_time" not in state:
+        state["start_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    if "agent_name" not in state:
-        state["agent_name"] = "Appliance Registration Agent"
+    if "current_date" not in state:
+        state["current_date"] = datetime.now().strftime("%Y-%m-%d")
 
     return None
 

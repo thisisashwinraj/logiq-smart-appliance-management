@@ -11,6 +11,8 @@ from google.adk.sessions import InMemorySessionService
 
 from customer_agent.agent import root_agent
 
+warnings.filterwarnings("ignore")
+
 
 if "customer_id" not in st.session_state:
     st.session_state.customer_id = "testcustomer"
@@ -21,8 +23,8 @@ warnings.filterwarnings("ignore")
 in_memory_session_service = InMemorySessionService()
 
 initial_state = {
-    "customer_full_name": "Amritha Raj",
-    "customer_id": st.session_state.customer_id,
+    "customer_full_name": "Test Customer",
+    "customer_id": "testcustomer",
 }
 
 

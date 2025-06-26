@@ -28,11 +28,11 @@ def _initialize_cloud_sql_mysql_db():
 
     def __get_connection_to_cloud_sql():
         return connector.connect(
-            st.secrets['CLOUD_SQL_MYSQL_INSTANCE_CONNECTION_STRING'],
-            st.secrets['CLOUD_SQL_MYSQL_DRIVER'],
-            user=st.secrets['CLOUD_SQL_MYSQL_USER'],
+            st.secrets["CLOUD_SQL_MYSQL_INSTANCE_CONNECTION_STRING"],
+            st.secrets["CLOUD_SQL_MYSQL_DRIVER"],
+            user=st.secrets["CLOUD_SQL_MYSQL_USER"],
             password=st.secrets["CLOUD_SQL_PASSWORD"],
-            db=st.secrets['CLOUD_SQL_MYSQL_DB'],
+            db=st.secrets["CLOUD_SQL_MYSQL_DB"],
         )
 
     pool = sqlalchemy.create_engine(
@@ -45,9 +45,7 @@ def _initialize_cloud_sql_mysql_db():
 
 def _initialize_firebase_firestore():
     try:
-        cred = credentials.Certificate(
-            "config/firebase_service_account_key.json"
-        )
+        cred = credentials.Certificate("config/firebase_service_account_key.json")
         firebase_admin.initialize_app(cred)
 
     except BaseException:
@@ -319,7 +317,7 @@ def register_new_appliance_tool(
                 "action_to_take": """
                 Inform the user that you are encountering a temporary problem 
                 validating their account details & ask them to try again later.
-                """
+                """,
             }
 
         def _fetch_warranty_period_and_appliance_image_url(
@@ -414,8 +412,8 @@ def register_new_appliance_tool(
 
 
 def get_all_customer_appliances_tool(
-    customer_id: str, 
-    limit: int, 
+    customer_id: str,
+    limit: int,
     tool_context: ToolContext,
 ) -> Dict[str, str]:
     """
@@ -447,9 +445,80 @@ def get_all_customer_appliances_tool(
                 "action_to_take": """
                 Inform the user that you are encountering a temporary problem 
                 validating their account details & ask them to try again later.
-                """
+                """,
             }
 
+        pool = _initialize_cloud_sql_mysql_db()
+
+        with pool.connect() as db_conn:
+            if limit == -1:
+                query = sqlalchemy.text(
+                    """
+                    SELECT category, sub_category, brand, model_number, 
+                    purchased_from, seller, purchase_date, installation_date, 
+                    warranty_period, warranty_expiration, appliance_image_url, 
+                    serial_number
+                    FROM customer_appliances
+                    WHERE customer_id = :customer_id
+                    ORDER BY created_on DESC
+                    """
+                )
+
+            else:
+                query = sqlalchemy.text(
+                    """
+                    SELECT category, sub_category, brand, model_number, 
+                    purchased_from, seller, purchase_date, installation_date, 
+                    warranty_period, warranty_expiration, appliance_image_url, 
+                    serial_number
+                    FROM customer_appliances
+                    WHERE customer_id = :customer_id
+                    ORDER BY created_on DESC
+                    LIMIT :limit
+                    """
+                )
+
+            result = db_conn.execute(
+                query, parameters={"customer_id": customer_id, "limit": limit}
+            ).fetchall()
+
+        customer_appliances = {}
+
+        for row in result:
+            serial_number = row.serial_number
+
+            appliance_details = {
+                "category": row[0],
+                "sub_category": row[1],
+                "brand": row[2],
+                "model_number": row[3],
+                "serial_number": serial_number,
+                "purchased_from": row[4],
+                "seller": row[5],
+                "purchase_date": row[6].strftime("%Y-%m-%d"),
+                "installation_date": row[7].strftime("%Y-%m-%d"),
+                "warranty_period": row[8],
+                "warranty_expiration": row[9].strftime("%Y-%m-%d"),
+                "appliance_image_url": row[10],
+                "serial_number": row[11],
+            }
+
+            customer_appliances[serial_number] = appliance_details
+
+        return customer_appliances
+
+    except Exception as error:
+        return {
+            "status": "error",
+            "message": str(error),
+        }
+
+
+def get_all_customer_appliances_callback_func(
+    customer_id: str,
+    limit: int,
+) -> Dict[str, str]:
+    try:
         pool = _initialize_cloud_sql_mysql_db()
 
         with pool.connect() as db_conn:
@@ -581,14 +650,12 @@ def register_onsite_service_request_tool(
                 "action_to_take": """
                 Inform the user that you are encountering a temporary problem 
                 validating their account details & ask them to try again later.
-                """
+                """,
             }
-        
+
         firestore_client = _initialize_firebase_firestore()
 
-        def _fetch_appliance_details(
-            customer_id: str, serial_number: str
-        ) -> Dict:
+        def _fetch_appliance_details(customer_id: str, serial_number: str) -> Dict:
             _pool = _initialize_cloud_sql_mysql_db()
 
             with _pool.connect() as _db_conn:
@@ -712,7 +779,7 @@ def register_onsite_service_request_tool(
         }
 
         response = requests.post(
-            st.secrets['URL_CLOUD_RUN_ONSITE_ENGINEER_ASSIGNMENT_SERVICE'],
+            st.secrets["URL_CLOUD_RUN_ONSITE_ENGINEER_ASSIGNMENT_SERVICE"],
             json=engineer_assignment_cloud_run_payload,
         )
 
@@ -803,9 +870,9 @@ def update_customer_appliance_details_tool(
                 "action_to_take": """
                 Inform the user that you are encountering a temporary problem 
                 validating their account details & ask them to try again later.
-                """
+                """,
             }
-        
+
         for field_name in updates.keys():
             if field_name in IMMUTABLE_APPLIANCE_FIELDS:
                 return {
@@ -814,7 +881,7 @@ def update_customer_appliance_details_tool(
                 }
 
         pool = _initialize_cloud_sql_mysql_db()
-        
+
         with pool.connect() as db_conn:
             update_query = "UPDATE customer_appliances SET "
             update_values = {}
@@ -885,11 +952,11 @@ def delete_customer_appliance_tool(
                 "action_to_take": """
                 Inform the user that you are encountering a temporary problem 
                 validating their account details & ask them to try again later.
-                """
+                """,
             }
-        
+
         pool = _initialize_cloud_sql_mysql_db()
-        
+
         with pool.connect() as db_conn:
             query = sqlalchemy.text(
                 """
@@ -902,7 +969,8 @@ def delete_customer_appliance_tool(
             db_conn.execute(
                 query,
                 parameters={
-                    "serial_number": serial_number, "customer_id": customer_id,
+                    "serial_number": serial_number,
+                    "customer_id": customer_id,
                 },
             )
             db_conn.commit()
@@ -920,7 +988,9 @@ def delete_customer_appliance_tool(
 
 
 def get_all_service_requests_briefs_tool(
-    customer_id: str, limit: int, tool_context: ToolContext,
+    customer_id: str,
+    limit: int,
+    tool_context: ToolContext,
 ) -> Dict[str, Dict[str, str]]:
     """
     Retrieves a brief overview of all service requests for a specific customer.
@@ -951,9 +1021,56 @@ def get_all_service_requests_briefs_tool(
                 "action_to_take": """
                 Inform the user that you are encountering a temporary problem 
                 validating their account details & ask them to try again later.
-                """
+                """,
             }
 
+        firestore_client = _initialize_firebase_firestore()
+
+        if limit > 0:
+            docs = (
+                firestore_client.collection("service_requests")
+                .document("onsite")
+                .collection(customer_id)
+                .limit(limit)
+                .get()
+            )
+
+        else:
+            docs = (
+                firestore_client.collection("service_requests")
+                .document("onsite")
+                .collection(customer_id)
+                .stream()
+            )
+
+        service_requests = {}
+
+        for doc in docs:
+            request_data = doc.to_dict()
+            service_requests[doc.id] = {
+                "request_title": str(request_data["request_title"]),
+                "appliance_name": str(
+                    request_data["appliance_details"]["brand"]
+                    + " "
+                    + request_data["appliance_details"]["sub_category"]
+                ),
+                "request_type": str(request_data["request_type"]),
+            }
+
+        return service_requests
+
+    except Exception as error:
+        return {
+            "status": "error",
+            "message": f"Failed to retrieve request briefs: {str(error)}",
+        }
+
+
+def get_all_service_requests_briefs_callback_func(
+    customer_id: str,
+    limit: int,
+) -> Dict[str, Dict[str, str]]:
+    try:
         firestore_client = _initialize_firebase_firestore()
 
         if limit > 0:
@@ -1028,7 +1145,7 @@ def get_service_request_details_tool(
                 "action_to_take": """
                 Inform the user that you are encountering a temporary problem 
                 validating their account details & ask them to try again later.
-                """
+                """,
             }
 
         firestore_client = _initialize_firebase_firestore()
@@ -1087,7 +1204,7 @@ def update_service_request_details_tool(
                 "action_to_take": """
                 Inform the user that you are encountering a temporary problem 
                 validating their account details & ask them to try again later.
-                """
+                """,
             }
 
         firestore_client = _initialize_firebase_firestore()
@@ -1151,8 +1268,8 @@ def delete_service_request_tool(
     """
     Deletes a specific service request for a given customer_id from Firestore.
 
-    This tool permanently removes a service request based on its request_id and 
-    customer_id. It also ensures that only a verified customer can delete their 
+    This tool permanently removes a service request based on its request_id and
+    customer_id. It also ensures that only a verified customer can delete their
     own appliances.
 
     Args:
@@ -1188,7 +1305,7 @@ def delete_service_request_tool(
                 "action_to_take": """
                 Inform the user that you are encountering a temporary problem 
                 validating their account details & ask them to try again later.
-                """
+                """,
             }
 
         firestore_client = _initialize_firebase_firestore()
@@ -1256,9 +1373,56 @@ def get_customer_details_tool(
                 "action_to_take": """
                 Inform the user that you are encountering a temporary problem 
                 validating their account details & ask them to try again later.
-                """
+                """,
             }
-        
+
+        pool = _initialize_cloud_sql_mysql_db()
+
+        with pool.connect() as db_conn:
+            query = sqlalchemy.text(
+                "SELECT first_name, last_name, dob, gender, email, street, "
+                "phone_number, district, city, state, country, zip_code "
+                "FROM customers WHERE username = :username"
+            )
+
+            result = db_conn.execute(
+                query, parameters={"username": customer_id}
+            ).fetchone()
+
+        if result is None:
+            return {
+                "status": "error",
+                "message": f"Customer '{customer_id}' not found.",
+            }
+
+        customer_details = {
+            "first_name": result.first_name,
+            "last_name": result.last_name,
+            "dob": result.dob.strftime("%Y-%m-%d"),
+            "gender": result.gender,
+            "email": result.email,
+            "phone_number": result.phone_number,
+            "street": result.street,
+            "district": result.district,
+            "city": result.city,
+            "state": result.state,
+            "country": result.country,
+            "zip_code": result.zip_code,
+        }
+
+        return customer_details
+
+    except Exception as error:
+        return {
+            "status": "error",
+            "message": f"Failed to retrieve customer details: {str(error)}",
+        }
+
+
+def get_customer_details_callback_func(
+    customer_id: str,
+) -> Dict[str, str]:
+    try:
         pool = _initialize_cloud_sql_mysql_db()
 
         with pool.connect() as db_conn:
@@ -1348,9 +1512,9 @@ def update_customer_details_tool(
                 "action_to_take": """
                 Inform the user that you are encountering a temporary problem 
                 validating their account details & ask them to try again later.
-                """
+                """,
             }
-        
+
         pool = _initialize_cloud_sql_mysql_db()
 
         with pool.connect() as db_conn:
@@ -1417,11 +1581,10 @@ def validate_and_format_address_tool(address: str, state: str) -> Dict[str, Any]
                                           operation failed.
     """
     try:
-        gmaps = googlemaps.Client(
-            key="AIzaSyAnN7CAWwqIrjIlvqx5TZFZg_3D5ldju9I"
-        )
-
         is_valid = False
+        gmaps = googlemaps.Client(
+            key=st.secrets["GOOGLE_MAPS_DISTANCE_MATRIX_API_KEY"]
+        )
 
         response = gmaps.addressvalidation(
             [address],
@@ -1561,8 +1724,8 @@ def get_filtered_appliances_tool(
     filters: Dict[str, str],
 ) -> Dict[str, Any]:
     """
-    Retrieves a list of available appliances from the database, filtered by
-    specified criteria.
+    Retrieves the list of available appliances from the database, filtered by
+    certain specified criterias.
 
     This tool allows dynamic filtering of appliances based on attributes like
     brand, category, energy rating, etc., ensuring only available products are
@@ -1646,12 +1809,15 @@ def get_filtered_appliances_tool(
             """,
         }
 
-def get_appliance_specifications_tool(model_number: str,) -> Dict[str, Any]:
+
+def get_appliance_specifications_tool(
+    model_number: str,
+) -> Dict[str, Any]:
     """
-    Retrieves the detailed appliance specifications for a given appliance model 
+    Retrieves the detailed appliance specifications for a given appliance model
     number from Firestore.
 
-    This tool connects to Firestore database to fetch technical specifications 
+    This tool connects to Firestore database to fetch technical specifications
     and features associated with a specific appliance model.
 
     Args:
@@ -1662,9 +1828,9 @@ def get_appliance_specifications_tool(model_number: str,) -> Dict[str, Any]:
                             Firestore document ID compatibility.
 
     Returns:
-        Dict[str, Any]: Dictionary containing the status of the operation and 
+        Dict[str, Any]: Dictionary containing the status of the operation and
                         either the appliance specifications or an error message
-                        
+
                         The dictionary can have the following structure:
                         - If successful:
                             {
@@ -1681,14 +1847,14 @@ def get_appliance_specifications_tool(model_number: str,) -> Dict[str, Any]:
                         - If appliance specifications not found for this model:
                             {
                                 "status": "error",
-                                "appliance_specifications": "Appliance 
+                                "appliance_specifications": "Appliance
                                 specifications are unavailable for this model"
                             }
 
                         - If an internal error occurs:
                             {
                                 "status": "error",
-                                "message": "Details about the error, e.g., 
+                                "message": "Details about the error, e.g.,
                                 'Permission denied'"
                             }
     """
@@ -1697,15 +1863,12 @@ def get_appliance_specifications_tool(model_number: str,) -> Dict[str, Any]:
 
         doc = (
             firestore_client.collection("appliance_specifications")
-            .document(model_number.replace('/', '_'))
+            .document(model_number.replace("/", "_"))
             .get()
         )
 
         if doc.exists:
-            return {
-                "status": "success",
-                "appliance_specifications": doc.to_dict()
-            }
+            return {"status": "success", "appliance_specifications": doc.to_dict()}
 
         else:
             message = "Appliance specifications are unavailable for this model"
@@ -1719,4 +1882,201 @@ def get_appliance_specifications_tool(model_number: str,) -> Dict[str, Any]:
         return {
             "status": "error",
             "message": str(error),
+        }
+
+
+def get_customer_phone_number_tool(
+    customer_id: str,
+    tool_context: ToolContext,
+) -> Dict[str, str]:
+    """
+    Retrieves the phone number of a specific customer from the backend database.
+
+    This tool fetches a customer's phone number based on the provided customer 
+    ID, ensuring data is returned in a structured format. It includes error 
+    handling for cases where customer is not found or a database error occurs.
+
+    Args:
+        customer_id (str): Unique identifier (username) of the customer whose
+                           details are to be retrieved.
+
+    Returns:
+        Dict[str, Any]: Dictionary containing the customer's phone number if 
+                        found, else a dictionary with status 'failed' and a 
+                        message if the phone number is not found or if an error 
+                        occurs.
+    """
+    try:
+        session_customer_id = tool_context.state.get("customer_id", None)
+
+        if session_customer_id is None or session_customer_id != customer_id:
+            return {
+                "status": "error",
+                "message": "Unable to validate customer",
+                "action_to_take": """
+                Inform the user that you are encountering a temporary problem 
+                validating their account details & ask them to try again later.
+                """,
+            }
+
+        pool = _initialize_cloud_sql_mysql_db()
+
+        with pool.connect() as db_conn:
+            query = sqlalchemy.text(
+                "SELECT phone_number "
+                "FROM customers WHERE username = :username"
+            )
+
+            result = db_conn.execute(
+                query, parameters={"username": customer_id}
+            ).fetchone()
+
+        if result is None:
+            return {
+                "status": "error",
+                "message": f"Customer's phone number not found.",
+            }
+
+        return {
+            "status": "success",
+            "customer_phone_number": result.get('phone_number'),
+        }
+
+    except Exception as error:
+        return {
+            "status": "error",
+            "message": f"Failed to retrieve customer phone no.: {str(error)}",
+        }
+
+
+def get_customer_email_tool(
+    customer_id: str,
+    tool_context: ToolContext,
+) -> Dict[str, str]:
+    """
+    Retrieves the email id of a specific customer from the backend database.
+
+    This tool fetches a customer's email id based on the provided customer id, 
+    ensuring data is returned in a structured format. It includes error 
+    handling for cases where customer is not found or a database error occurs.
+
+    Args:
+        customer_id (str): Unique identifier (username) of the customer whose
+                           details are to be retrieved.
+
+    Returns:
+        Dict[str, Any]: Dictionary containing the customer's email id if found, 
+                        else a dictionary with status 'failed' and a message if 
+                        the email id is not found or if an error occurs.
+    """
+    try:
+        session_customer_id = tool_context.state.get("customer_id", None)
+
+        if session_customer_id is None or session_customer_id != customer_id:
+            return {
+                "status": "error",
+                "message": "Unable to validate customer",
+                "action_to_take": """
+                Inform the user that you are encountering a temporary problem 
+                validating their account details & ask them to try again later.
+                """,
+            }
+
+        pool = _initialize_cloud_sql_mysql_db()
+
+        with pool.connect() as db_conn:
+            query = sqlalchemy.text(
+                "SELECT email "
+                "FROM customers WHERE username = :username"
+            )
+
+            result = db_conn.execute(
+                query, parameters={"username": customer_id}
+            ).fetchone()
+
+        if result is None:
+            return {
+                "status": "error",
+                "message": f"Customer's email not found.",
+            }
+
+        return {
+            "status": "success",
+            "customer_email_id": result.get('email'),
+        }
+
+    except Exception as error:
+        return {
+            "status": "error",
+            "message": f"Failed to retrieve customer' email id: {str(error)}",
+        }
+
+
+def get_customer_address_tool(
+    customer_id: str,
+    tool_context: ToolContext,
+) -> Dict[str, str]:
+    """
+    Retrieves the address of a specific customer from the backend database.
+
+    This tool fetches a customer's address based on the provided customer 
+    ID, ensuring data is returned in a structured format. It includes error 
+    handling for cases where customer is not found or a database error occurs.
+
+    Args:
+        customer_id (str): Unique identifier (username) of the customer whose
+                           address is to be retrieved.
+
+    Returns:
+        Dict[str, Any]: Dictionary containing the customer's address if found, 
+                        else a dictionary with status 'failed' and a message if 
+                        the address is not found or if an error occurs.
+    """
+    try:
+        session_customer_id = tool_context.state.get("customer_id", None)
+
+        if session_customer_id is None or session_customer_id != customer_id:
+            return {
+                "status": "error",
+                "message": "Unable to validate customer",
+                "action_to_take": """
+                Inform the user that you are encountering a temporary problem 
+                validating their account details & ask them to try again later.
+                """,
+            }
+
+        pool = _initialize_cloud_sql_mysql_db()
+
+        with pool.connect() as db_conn:
+            query = sqlalchemy.text(
+                "SELECT street, city, district, state, zip_code "
+                "FROM customers WHERE username = :username"
+            )
+
+            result = db_conn.execute(
+                query, parameters={"username": customer_id}
+            ).fetchone()
+
+        if result is None:
+            return {
+                "status": "error",
+                "message": f"Customer's address not found.",
+            }
+        
+        customer_address = {
+            "street": f"{result.street}, {result.city}",
+            "city": result.district,
+            "state": result.state,
+            "zip_code": result.zip_code,
+        }
+
+        return {
+            "status": "success",
+            "customer_address": customer_address,
+        }
+
+    except Exception as error:
+        return {
+            "status": "error",
+            "message": f"Failed to retrieve customer' email id: {str(error)}",
         }

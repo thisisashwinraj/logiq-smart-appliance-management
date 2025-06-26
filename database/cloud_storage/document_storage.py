@@ -1,7 +1,10 @@
 import os
+import warnings
 
 from google.cloud import storage
 from datetime import datetime, timedelta
+
+warnings.filterwarnings("ignore")
 
 
 class CustomerRecordsBucket:

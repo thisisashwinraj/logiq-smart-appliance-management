@@ -1,8 +1,11 @@
 import os
 import time
+import uuid
+import warnings
+from dotenv import load_dotenv
+
 import datetime
 from datetime import timedelta
-from dotenv import load_dotenv
 
 import streamlit as st
 import streamlit_antd_components as sac
@@ -12,18 +15,25 @@ from customer_agent.runner import initialize_adk, run_adk_sync
 from database.cloud_storage.multimedia_storage import ProfilePicturesBucket
 from database.cloud_sql.queries import QueryCustomers
 
+
 st.set_page_config(
-    page_title="LogIQ Customer Agent",
+    page_title="LogIQ Customers: Support",
     page_icon="assets/logos/logiq_favicon.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
+warnings.filterwarnings("ignore")
+
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+load_dotenv(dotenv_path)
+
+
 st.html(
     """
     <style>
         section[data-testid="stSidebar"] {
-            width: 315px !important; # Set the width to your desired value
+            width: 325px !important; # Set the width to your desired value
         }
     </style>
     """
@@ -67,11 +77,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
-load_dotenv(dotenv_path)
 
 if "customer_id" not in st.session_state:
     st.session_state.customer_id = None
+
+if "current_session_id" not in st.session_state:
+    st.session_state.current_session = str(uuid.uuid4()).replace("-", "")[:12]
 
 if "customer_name" not in st.session_state:
     st.session_state.customer_name = ""
@@ -81,18 +92,6 @@ if "customer_email" not in st.session_state:
 
 if "customer_details" not in st.session_state:
     st.session_state.customer_details = ""
-
-if 'messages' not in st.session_state:
-    st.session_state['messages'] = []
-
-    welcome_message = f"""
-    Hi **{str(st.session_state.customer_name.strip().split()[0])}**, welcome to 
-    LogIQ. I'm your AI guide dedicated to making your appliance 
-    ownership seamless and simple. How can I help you today...?"""
-
-    st.session_state.messages.append(
-        {"role": "assistant", "content": welcome_message}
-    )
 
 if "themes" not in st.session_state:
     st.session_state.themes = {
@@ -205,6 +204,19 @@ adk_logo = "https://google.github.io/adk-docs/assets/agent-development-kit.png"
 
 if __name__ == "__main__":
     if st.session_state.customer_id:
+        if 'messages' not in st.session_state:
+            st.session_state['messages'] = []
+
+            welcome_message = f"""
+            Hi **{str(st.session_state.customer_name.strip().split()[0])}**, 
+            welcome to LogIQ. I'm your AI guide dedicated to making your 
+            appliance ownership seamless and simple. How can I help you 
+            today...?"""
+
+            st.session_state.messages.append(
+                {"role": "assistant", "content": welcome_message}
+            )
+
         greeting = get_greetings(
             is_ist=True, 
             session_id=st.session_state.current_session,
@@ -226,7 +238,9 @@ if __name__ == "__main__":
                                     "current_theme"]]["cardColor"]};
                             border: 1px solid {st.session_state.themes[
                                 st.session_state.themes[
-                                    "current_theme"]]["containerBoundaryColor"]};;
+                                    "current_theme"]][
+                                        "containerBoundaryColor"
+                                    ]};;
                             border-radius: 0.6rem;
                             padding: calc(1em - 1px)
                         }}
@@ -272,15 +286,17 @@ if __name__ == "__main__":
                         with coly:
                             st.markdown(
                                 f"""
-                                <B>{str(st.session_state.customer_name)}</B><BR>
-                                Username: {st.session_state.customer_id}
+                                <B>{str(st.session_state.customer_name)}</B>
+                                <BR>Username: {st.session_state.customer_id}
                                 """,
                                 unsafe_allow_html=True,
                             )
 
                 st.write("<HR>", unsafe_allow_html=True)
 
-                alert = "LogIQ can make mistakes. Please double-check responses."
+                alert = """LogIQ can make mistakes. 
+                Please double-check responses."""
+
                 sac.alert(
                     label="You are interacting with an AI",
                     description=alert,
@@ -295,6 +311,7 @@ if __name__ == "__main__":
                     icon=":material/arrow_back:",
                     use_container_width=True,
                 ):
+                    st.cache_data.clear()
                     st.switch_page('customer_app.py')
 
             with colb:
@@ -321,10 +338,6 @@ if __name__ == "__main__":
                 Service: {e}", icon=":material/cancel:"""
             )
 
-            st.error("""
-                Please check the terminal logs for more details, ensure your API 
-                key is valid, and restart the application."""
-            )
             st.stop()
 
         for message in st.session_state['messages']:
@@ -337,7 +350,6 @@ if __name__ == "__main__":
                 st.markdown(message["content"], unsafe_allow_html=False)
 
         if prompt := st.chat_input("Type your question here..."):
-            print(f"User input received: '{prompt[:50]}...'")
             st.session_state['messages'].append(
                 {"role": "user", "content": prompt}
             )
@@ -358,8 +370,8 @@ if __name__ == "__main__":
                         )
 
                     except Exception as error:
-                        agent_response = "Sorry, an error occurred while processing your request. Please check the logs or try again later."
-                        print(f"Error occurred within the Streamlit chat input processing block.{error}")
+                        agent_response = """Sorry, an error occurred while 
+                        processing your request. Please try again later."""
 
                 st.session_state.messages.append(
                     {"role": "assistant", "content": agent_response}
@@ -387,9 +399,6 @@ if __name__ == "__main__":
                     response = st.write_stream(
                         response_generator(fallback_message)
                     )
-            print("Agent response added to history. Streamlit will rerun.")
-
-        print("✅ Streamlit UI Rendering Complete.")
 
     else:
         st.switch_page("customer_app.py")

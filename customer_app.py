@@ -2,6 +2,7 @@ import time
 import uuid
 import bleach
 import requests
+import warnings
 from PIL import Image
 
 import datetime
@@ -35,11 +36,13 @@ from database.firebase.firestore import OnsiteServiceRequestCollection
 
 
 st.set_page_config(
-    page_title="LogIQ Customer App",
+    page_title="LogIQ Customers: Home",
     page_icon="assets/logos/logiq_favicon.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+warnings.filterwarnings("ignore")
 
 ################################ [CUSTOM CSS] #################################
 
@@ -47,7 +50,7 @@ st.html(
     """
     <style>
         section[data-testid="stSidebar"] {
-            width: 315px !important; # Set the width to your desired value
+            width: 325px !important; # Set the width to your desired value
         }
     </style>
     """
@@ -97,7 +100,7 @@ if "customer_id" not in st.session_state:
     st.session_state.customer_id = None
 
 if "current_session_id" not in st.session_state:
-    st.session_state.current_session = str(uuid.uuid4()).replace('-', '')[:12]
+    st.session_state.current_session = str(uuid.uuid4()).replace("-", "")[:12]
 
 if "recent_appliance_serial_numbers" not in st.session_state:
     st.session_state.recent_appliance_serial_numbers = []
@@ -212,15 +215,16 @@ if "distinct_appliance_data" not in st.session_state:
 
 ############################ [STREAMLIT DIALOGS] ##############################
 
+
 @st.dialog("Manage Account", width="large")
 def dialog_manage_account():
     cola, _, colb = st.columns([1, 0.05, 4], vertical_alignment="top")
 
     with cola:
         try:
-            profile_picture_bucket = ProfilePicturesBucket()
+            profile_pic_bucket = ProfilePicturesBucket()
 
-            profile_picture_url = profile_picture_bucket.fetch_profile_picture_url(
+            profile_picture_url = profile_pic_bucket.fetch_profile_picture_url(
                 user_type="customers",
                 user_id=st.session_state.customer_id,
             )
@@ -242,19 +246,25 @@ def dialog_manage_account():
         st.markdown(
             f"""
             <H2 class="h2-vsrd-3">
-                {st.session_state.customer_details.get('first_name')} {st.session_state.customer_details.get('last_name')}
+                {st.session_state.customer_details.get('first_name')} {
+                    st.session_state.customer_details.get('last_name')}
             </H2>
             Username: {st.session_state.customer_id}
-            &nbsp; • &nbsp;Gender: {st.session_state.customer_details.get('gender')}
-            &nbsp; • &nbsp;Date of Birth: {st.session_state.customer_details.get('dob').strftime('%B %d, %Y')}
+            &nbsp; • &nbsp;Gender: {
+                st.session_state.customer_details.get('gender')}
+            &nbsp; • &nbsp;Date of Birth: {
+                st.session_state.customer_details.get('dob').strftime(
+                    '%B %d, %Y')}
             """,
             unsafe_allow_html=True,
         )
 
         st.write(" ")
+
         st.markdown(
             f"""
-            ☎️ **Phone:** (+91) {st.session_state.customer_details.get('phone_number')}
+            ☎️ **Phone No.:** {st.session_state.customer_details.get(
+                'phone_number')}
             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
             📧 **Email:** {st.session_state.customer_details.get('email')}
             """,
@@ -272,14 +282,18 @@ def dialog_manage_account():
 
     if selected_tab == "Personal Details":
         cola, colb = st.columns(2)
+
         first_name = bleach.clean(
             cola.text_input(
-                "First Name", value=st.session_state.customer_details.get("first_name")
+                "First Name",
+                value=st.session_state.customer_details.get("first_name"),
             )
         )
+
         last_name = bleach.clean(
             colb.text_input(
-                "Last Name", value=st.session_state.customer_details.get("last_name")
+                "Last Name",
+                value=st.session_state.customer_details.get("last_name"),
             )
         )
 
@@ -289,9 +303,11 @@ def dialog_manage_account():
                 value=st.session_state.customer_details.get("phone_number"),
             )
         )
+
         email = bleach.clean(
             colb.text_input(
-                "Email Id", value=st.session_state.customer_details.get("email")
+                "Email Id",
+                value=st.session_state.customer_details.get("email"),
             )
         )
 
@@ -326,7 +342,8 @@ def dialog_manage_account():
 
                     except Exception as error:
                         st.warning(
-                            "Unable to save profile picture", icon=":material/warning:"
+                            "Unable to save profile picture",
+                            icon=":material/warning:",
                         )
 
                     finally:
@@ -359,7 +376,10 @@ def dialog_manage_account():
                     )
 
             if response:
-                st.success("Profile updated succesfully!", icon=":material/check:")
+                st.success(
+                    "Profile updated succesfully!",
+                    icon=":material/check:",
+                )
 
                 try:
                     get_customer_details.clear()
@@ -416,7 +436,7 @@ def dialog_manage_account():
 
         zip_code = bleach.clean(
             cola.text_input(
-                "Zip Code", 
+                "Zip Code",
                 value=st.session_state.customer_details.get("zip_code"),
             )
         )
@@ -448,19 +468,25 @@ def dialog_manage_account():
 
         district = bleach.clean(
             colb.text_input(
-                "District", value=district, disabled=True,
+                "District",
+                value=district,
+                disabled=True,
             )
         )
 
         state = bleach.clean(
             colc.text_input(
-                "State", value=state, disabled=True,
+                "State",
+                value=state,
+                disabled=True,
             )
         )
 
         country = bleach.clean(
             cold.text_input(
-                "Country", value=country, disabled=True,
+                "Country",
+                value=country,
+                disabled=True,
             )
         )
 
@@ -485,7 +511,10 @@ def dialog_manage_account():
                 )
 
             if response:
-                st.success("Profile updated succesfully!", icon=":material/check:")
+                st.success(
+                    "Profile updated succesfully!",
+                    icon=":material/check:",
+                )
 
                 try:
                     get_customer_details.clear()
@@ -525,14 +554,18 @@ def dialog_manage_account():
         ):
             st.rerun()
 
+
 @st.dialog("Credits and Attribution", width="large")
 def dialog_attribution():
     sac.alert(
         label=f"Acknowledgments and Fair Use Notice",
-        description="This project is built as part of the Agent Development Kit Hackathon with Google Cloud. For any questions or concerns, please drop a line at thisisashwinraj@gmail.com.",
+        description="""This project is built as part of the Agent Development 
+        Kit Hackathon with Google Cloud. For any questions or concerns, please 
+        drop a line at thisisashwinraj@gmail.com.""",
         color="info",
         icon=True,
     )
+
 
 @st.dialog("Register New Appliance", width="large")
 def register_new_appliance():
@@ -563,11 +596,13 @@ def register_new_appliance():
         def fetch_and_cache_appliance_sub_categories(category, session_id):
             try:
                 if st.session_state.distinct_appliance_data.get(category):
-                    st.session_state.ra_available_appliance_sub_categories = list(
+                    result = list(
                         st.session_state.distinct_appliance_data.get(category).keys()
                     )
                 else:
-                    st.session_state.ra_available_appliance_sub_categories = None
+                    result = None
+
+                st.session_state.ra_available_appliance_sub_categories = result
 
             except Exception as error:
                 st.error(error)
@@ -611,7 +646,7 @@ def register_new_appliance():
                     .get(st.session_state.ra_sub_category)
                     .get(brand)
                 ):
-                    st.session_state.ra_available_appliance_model_numbers = list(
+                    result = list(
                         st.session_state.distinct_appliance_data.get(
                             st.session_state.ra_category
                         )
@@ -619,7 +654,9 @@ def register_new_appliance():
                         .get(brand)
                     )
                 else:
-                    st.session_state.ra_available_appliance_model_numbers = None
+                    result = None
+
+                st.session_state.ra_available_appliance_model_numbers = result
 
             except Exception as error:
                 st.error(error)
@@ -650,7 +687,7 @@ def register_new_appliance():
         with colb:
             fetch_and_cache_appliance_sub_categories(
                 st.session_state.ra_category,
-                session_id=st.session_state.current_session
+                session_id=st.session_state.current_session,
             )
 
             try:
@@ -698,7 +735,8 @@ def register_new_appliance():
                 )
 
         st.info(
-            "Serial number is located on the back or underside of your appliance",
+            """Serial number is located on the back or underside of your 
+            appliance""",
             icon=":material/info:",
         )
 
@@ -706,8 +744,8 @@ def register_new_appliance():
 
         with cola:
             fetch_and_cache_model_numbers(
-                st.session_state.ra_brand, 
-                st.session_state.ra_sub_category, 
+                st.session_state.ra_brand,
+                st.session_state.ra_sub_category,
                 session_id=st.session_state.current_session,
             )
 
@@ -769,7 +807,8 @@ def register_new_appliance():
             )
 
         st.info(
-            "Seller details and purchase info can be found on the product invoice",
+            """Seller details and purchase info can be found on the product 
+            invoice""",
             icon=":material/info:",
         )
         cola, colb = st.columns(2)
@@ -809,7 +848,11 @@ def register_new_appliance():
             accept_multiple_files=False,
         )
 
-        if st.button("Submit Details and Register Appliance", type='primary', icon=":material/check:"):
+        if st.button(
+            "Submit Details and Register Appliance",
+            type="primary",
+            icon=":material/check:",
+        ):
             progress_bar = st.progress(0, text="Verifying the registration form fields")
 
             if (
@@ -820,7 +863,8 @@ def register_new_appliance():
                 or (st.session_state.ra_serial_number is None)
             ):
                 warning_status = st.warning(
-                    "Kindly fill the missing fields in Step 1 - Appliance Details",
+                    """Kindly fill the missing fields in 
+                    Step 1 - Appliance Details""",
                     icon=":material/warning:",
                 )
 
@@ -834,7 +878,8 @@ def register_new_appliance():
                 or (st.session_state.ra_seller is None)
             ):
                 warning_status = st.warning(
-                    "Kindly fill the missing fields in Step 2 - Warranty Details",
+                    """Kindly fill the missing fields in 
+                    Step 2 - Warranty Details""",
                     icon=":material/warning:",
                 )
 
@@ -845,7 +890,8 @@ def register_new_appliance():
                 ra_warranty_certificate_file is None
             ):
                 warning_status = st.warning(
-                    "Kindly upload the missing documents in Step 3 - Upload Documents",
+                    """Kindly upload the missing documents in 
+                    Step 3 - Upload Documents""",
                     icon=":material/warning:",
                 )
 
@@ -857,7 +903,8 @@ def register_new_appliance():
                 flag_appliance_registration_status = True
 
                 progress_bar.progress(
-                    25, "Saving appliance details and uploading documents"
+                    25,
+                    "Saving appliance details and uploading documents",
                 )
 
                 try:
@@ -871,7 +918,10 @@ def register_new_appliance():
                         )
                     )
 
-                    progress_bar.progress(50, "Registering your appliance warranty")
+                    progress_bar.progress(
+                        50,
+                        "Registering your appliance warranty",
+                    )
 
                 except Exception as error:
                     uploaded_purchase_invoice_to_bucket = False
@@ -888,7 +938,10 @@ def register_new_appliance():
                         )
                     )
 
-                    progress_bar.progress(75, "Registering appliance to your profile")
+                    progress_bar.progress(
+                        75,
+                        "Registering appliance to your profile",
+                    )
 
                 except Exception as error:
                     uploaded_warranty_certificate_to_bucket = False
@@ -937,7 +990,8 @@ def register_new_appliance():
                         )
 
                         progress_bar.progress(
-                            100, "Your appliance has been registered."
+                            100,
+                            "Your appliance has been registered.",
                         )
 
                     except Exception as error:
@@ -985,6 +1039,7 @@ def register_new_appliance():
                     time.sleep(3)
                     failure_status.empty()
                     st.rerun()
+
 
 @st.dialog("Appliance Details", width="large")
 def view_customer_appliance_details(appliance_details):
@@ -1051,6 +1106,7 @@ def view_customer_appliance_details(appliance_details):
                 icon=":material/description:",
             )
 
+
 @st.dialog("Create New Onsite Service Request", width="large")
 def create_new_onsite_service_request():
     step_register_service_request = sac.steps(
@@ -1062,6 +1118,7 @@ def create_new_onsite_service_request():
     st.markdown(" ", unsafe_allow_html=True)
 
     with st.spinner("Fetching data...", show_time=True):
+
         @st.cache_data(show_spinner=False)
         def fetch_and_cache_customer_appliance_serials(session_id):
             query_customer_appliances = QueryCustomerAppliances()
@@ -1421,6 +1478,7 @@ def create_new_onsite_service_request():
                 time.sleep(3)
                 st.rerun()
 
+
 @st.dialog("Service Request Details", width="large")
 def view_service_request_details(service_request_id, service_request_details):
     with st.spinner("Fetching details...", show_time=True):
@@ -1444,8 +1502,7 @@ def view_service_request_details(service_request_id, service_request_details):
                 return engineer_name
 
             engineer_name = get_engineer_name(
-                assigned_to_engineer_id, 
-                session_id=st.session_state.current_session
+                assigned_to_engineer_id, session_id=st.session_state.current_session
             )
 
     cola, colb = st.columns([2, 1])
@@ -1749,6 +1806,7 @@ def view_service_request_details(service_request_id, service_request_details):
                 )
                 del otp_alert
 
+
 @st.dialog("Edit Request Details", width="large")
 def edit_service_request_details(service_request_id, service_request_details):
     cola, colb = st.columns(2)
@@ -1825,7 +1883,9 @@ def edit_service_request_details(service_request_id, service_request_details):
     if button_delete_service_request:
         st.rerun()
 
+
 ############################# [CACHED FUNCTIONS] ##############################
+
 
 @st.cache_data(show_spinner=False)
 def fetch_and_cache_customer_appliance_details(session_id):
@@ -1840,9 +1900,11 @@ def fetch_and_cache_customer_appliance_details(session_id):
         pass
 
         try:
-            st.session_state.recent_appliance_serial_numbers = query_customer_appliances.fetch_appliance_serial_numbers_by_customer_id(
-                customer_id=st.session_state.customer_id,
-                limit=-1,
+            st.session_state.recent_appliance_serial_numbers = (
+                query_customer_appliances.fetch_appliance_serial_numbers_by_customer_id(
+                    customer_id=st.session_state.customer_id,
+                    limit=-1,
+                )
             )
         except Exception as error:
             pass
@@ -1920,14 +1982,18 @@ def fetch_and_cache_customer_appliance_details(session_id):
             except Exception as error:
                 pass
 
+
 @st.cache_data(show_spinner=False)
 def fetch_and_cache_customers_service_requests(session_id):
     onsite_service_request_collection = OnsiteServiceRequestCollection()
 
-    st.session_state.customers_service_requests_list = onsite_service_request_collection.fetch_latest_service_request_by_customer_id(
-        customer_id=st.session_state.customer_id,
-        limit=-1,
+    st.session_state.customers_service_requests_list = (
+        onsite_service_request_collection.fetch_latest_service_request_by_customer_id(
+            customer_id=st.session_state.customer_id,
+            limit=-1,
+        )
     )
+
 
 @st.cache_data(show_spinner=False)
 def fetch_and_cache_best_appliances_by_energy_rating(session_id):
@@ -1937,13 +2003,17 @@ def fetch_and_cache_best_appliances_by_energy_rating(session_id):
         query_appliances.fetch_best_appliances_by_energy_rating(count=4)
     )
 
+
 @st.cache_data(show_spinner=False)
 def fetch_and_cache_all_customer_service_requests(session_id):
     onsite_service_request_collection = OnsiteServiceRequestCollection()
 
-    st.session_state.all_customers_service_requests_list = onsite_service_request_collection.fetch_all_service_request_by_customer_id(
-        customer_id=st.session_state.customer_id,
+    st.session_state.all_customers_service_requests_list = (
+        onsite_service_request_collection.fetch_all_service_request_by_customer_id(
+            customer_id=st.session_state.customer_id,
+        )
     )
+
 
 @st.cache_data(show_spinner=False, ttl="30 minutes")
 def get_greetings(is_ist, session_id):
@@ -1993,6 +2063,7 @@ def get_customer_details(full_name, session_id):
 
     return st.session_state.customer_name
 
+
 ################################# [THEMEING] ##################################
 
 if "themes" not in st.session_state:
@@ -2025,6 +2096,7 @@ if "themes" not in st.session_state:
         },
     }
 
+
 def change_streamlit_theme():
     previous_theme = st.session_state.themes["current_theme"]
     tdict = (
@@ -2053,18 +2125,17 @@ if st.session_state.themes["refreshed"] == False:
 ################################# [APP LOGIC] #################################
 
 if __name__ == "__main__":
+    if st.session_state.themes['current_theme'] == 'light':
+        st.logo("assets/logos/app_logo_light.png")
+    else:
+        st.logo("assets/logos/app_logo_dark.png")
+
     if not st.user or not st.user.is_logged_in:
-        cola, colb, colc = st.columns(
-            [2.82, 3, 2.82], vertical_alignment='top'
-        )
+        _, login_col, _ = st.columns([2.82, 3, 2.82], vertical_alignment="top")
 
         ########################### [LANDING PAGE] ############################
 
-        with cola:
-            colx, coly = st.columns([1, 2.5])
-            #colx.image("assets/logos/logiq_logo.png", use_container_width=True)
-
-        with colb:
+        with login_col:
             st.markdown("<BR>", unsafe_allow_html=True)
             st.write(" ")
 
@@ -2081,43 +2152,49 @@ if __name__ == "__main__":
                         """,
                 ):
                     st.write(" ")
-                    colx, _, _  = st.columns(
-                        [1,1.15,1.15], vertical_alignment='center'
+                    colx, _, _ = st.columns(
+                        [1, 1.15, 1.15], vertical_alignment="center"
                     )
 
                     colx.image("assets/avatars/animojis/ms_penguin.jpeg")
 
                     st.markdown("<H3>Welcome Back</H3>", unsafe_allow_html=True)
-                    st.markdown(f"<font color='{st.session_state.themes[st.session_state.themes['current_theme']]['theme.secondaryBackgroundColor']}'>Login to manage your appliances, view service requests and receive proactive maintenance tips, in a single click</font>", unsafe_allow_html=True)
+                    st.markdown(
+                        f"<font color='{st.session_state.themes[st.session_state.themes['current_theme']]['theme.secondaryBackgroundColor']}'>Login to manage your appliances, view service requests and receive proactive maintenance tips, in a single click</font>",
+                        unsafe_allow_html=True,
+                    )
 
                     if st.button(
-                        "Sign in with Google", 
-                        icon=":material/account_circle:", 
-                        type='primary', 
+                        "Sign in with Google",
+                        icon=":material/account_circle:",
+                        type="primary",
                         use_container_width=True,
                     ):
-                        st.login('google')
+                        st.login("google")
 
                     sac.divider(
-                        align='center', 
-                        color=st.session_state.themes[st.session_state.themes['current_theme']]['containerBoundaryColor'])
+                        align="center",
+                        color=st.session_state.themes[
+                            st.session_state.themes["current_theme"]
+                        ]["containerBoundaryColor"],
+                    )
 
                     if st.button(
-                        "Credits and Attribution", 
-                        type='secondary', 
+                        "Credits and Attribution",
+                        type="secondary",
                         use_container_width=True,
                     ):
                         dialog_attribution()
 
-                    #button_login = sac.buttons([
+                    # button_login = sac.buttons([
                     #    sac.ButtonsItem(label='Sign in with Google', icon='google', color="#4486F4"),
-                    #], label='', align='center', use_container_width=True)
+                    # ], label='', align='center', use_container_width=True)
 
-                    #if button_login.lower() == 'sign in with google':
+                    # if button_login.lower() == 'sign in with google':
                     #    #st.login('google')
                     #    print('google')
 
-                    #print(ans)
+                    # print(ans)
 
                     st.markdown(" ", unsafe_allow_html=True)
 
@@ -2132,7 +2209,7 @@ if __name__ == "__main__":
         try:
             query_customers = QueryCustomers()
 
-            if hasattr(st.user, 'email'):
+            if hasattr(st.user, "email"):
                 username = query_customers.fetch_username_by_customer_email_id(
                     st.user.email
                 )
@@ -2156,11 +2233,13 @@ if __name__ == "__main__":
 
     if st.session_state.customer_id:
         greeting = get_greetings(
-            is_ist=True, session_id=st.session_state.current_session,
+            is_ist=True,
+            session_id=st.session_state.current_session,
         )
 
         customer_name = get_customer_details(
-            full_name=True, session_id=st.session_state.current_session,
+            full_name=True,
+            session_id=st.session_state.current_session,
         )
 
         if "customer_appliances" not in st.session_state:
@@ -2211,10 +2290,10 @@ if __name__ == "__main__":
 
                         with colx:
                             try:
-                                profile_picture_bucket = ProfilePicturesBucket()
+                                profile_pic_bucket = ProfilePicturesBucket()
 
                                 profile_picture_url = (
-                                    profile_picture_bucket.fetch_profile_picture_url(
+                                    profile_pic_bucket.fetch_profile_picture_url(
                                         user_type="customers",
                                         user_id=st.session_state.customer_id,
                                     )
@@ -2301,7 +2380,12 @@ if __name__ == "__main__":
                     register_new_appliance()
 
             with ribbon_col_3:
-                if st.button("", icon=":material/face_2:", help="AI Mode", use_container_width=True):
+                if st.button(
+                    "",
+                    icon=":material/face_2:",
+                    help="AI Mode",
+                    use_container_width=True,
+                ):
                     st.switch_page("pages/customer_agent.py")
 
             with ribbon_col_4:
@@ -2325,7 +2409,9 @@ if __name__ == "__main__":
 
             query_customer_appliances = QueryCustomerAppliances()
 
-            fetch_and_cache_customer_appliance_details(session_id=st.session_state.current_session)
+            fetch_and_cache_customer_appliance_details(
+                session_id=st.session_state.current_session
+            )
 
             if len(st.session_state.recent_appliance_serial_numbers) > 0:
                 with col1:
@@ -2514,7 +2600,7 @@ if __name__ == "__main__":
                                 view_customer_appliance_details(
                                     st.session_state.customer_appliance_4_details
                                 )
-            
+
             fetch_and_cache_customers_service_requests(
                 session_id=st.session_state.current_session
             )
@@ -2556,6 +2642,7 @@ if __name__ == "__main__":
             for i in range(len(st.session_state.customers_service_requests_list)):
                 if i >= 2:
                     break
+
                 service_request_id, service_request_details = (
                     st.session_state.customers_service_requests_list[i]
                 )
@@ -2571,7 +2658,7 @@ if __name__ == "__main__":
                         }}
                     """,
                 ):
-                    cola, colb, colc = st.columns([0.84, 2.72, 1.5])
+                    cola, colb, colc = st.columns([0.85, 2.71, 1.5])
 
                     with cola:
                         st.image(
@@ -2605,7 +2692,7 @@ if __name__ == "__main__":
                             st.markdown(
                                 f"""
                                 <div class="div-truncate-text">
-                                    <P align='left'>
+                                    <P class='p-service-request-request-id-serial-number'>
                                         {service_request_details['description']}...
                                     </P>
                                 </div>
@@ -3326,11 +3413,11 @@ if __name__ == "__main__":
     ########################### [USER REGISTRATION] ###########################
 
     else:
-        colp, colq, colr = st.columns([1, 8, 1], vertical_alignment='top')
+        colp, colq, colr = st.columns([1, 8, 1], vertical_alignment="top")
 
         with colp:
             colx, coly = st.columns([1, 2.5])
-            #colx.image("assets/logos/logiq_logo.png", use_container_width=True)
+            # colx.image("assets/logos/logiq_logo.png", use_container_width=True)
 
         with colq:
             st.markdown(" ", unsafe_allow_html=True)
@@ -3347,43 +3434,62 @@ if __name__ == "__main__":
                         }}
                         """,
                 ):
-                    st.markdown("<H3>Create Your LogIQ Profile...</H3>", unsafe_allow_html=True)
-                    #st.markdown(f"<font color='{st.session_state.themes[st.session_state.themes['current_theme']]['theme.secondaryBackgroundColor']}'>Login to manage your appliances, view service requests and receive proactive maintenance tips, in a single click</font>", unsafe_allow_html=True)
-                    
-                    with st.form("_register_new_customer_form", border=False, enter_to_submit=False):
-                        cola, colb, colc = st.columns(3, vertical_alignment='center')
-                        
+                    st.markdown(
+                        "<H3>Create Your LogIQ Profile...</H3>", unsafe_allow_html=True
+                    )
+                    # st.markdown(f"<font color='{st.session_state.themes[st.session_state.themes['current_theme']]['theme.secondaryBackgroundColor']}'>Login to manage your appliances, view service requests and receive proactive maintenance tips, in a single click</font>", unsafe_allow_html=True)
+
+                    with st.form(
+                        "_register_new_customer_form",
+                        border=False,
+                        enter_to_submit=False,
+                    ):
+                        cola, colb, colc = st.columns(3, vertical_alignment="center")
+
                         with cola:
                             input_first_name = st.text_input(
-                                "First Name", 
-                                value=st.user.given_name if hasattr(st.user, 'given_name') else "", 
-                                placeholder='First Name',
+                                "First Name",
+                                value=(
+                                    st.user.given_name
+                                    if hasattr(st.user, "given_name")
+                                    else ""
+                                ),
+                                placeholder="First Name",
                                 max_chars=30,
                             )
 
                         with colb:
                             input_last_name = st.text_input(
-                                "Last Name", 
-                                value=st.user.family_name if hasattr(st.user, 'family_name') else "", 
-                                placeholder='Last Name',
+                                "Last Name",
+                                value=(
+                                    st.user.family_name
+                                    if hasattr(st.user, "family_name")
+                                    else ""
+                                ),
+                                placeholder="Last Name",
                                 max_chars=30,
                             )
-                        
+
                         with colc:
                             input_phone_number = st.text_input(
-                                "Phone Number", 
-                                placeholder='Phone number, without country code',
+                                "Phone Number",
+                                placeholder="Phone number, without country code",
                                 max_chars=10,
                             )
 
-                        st.info("Username once set can not be changed.", icon=":material/info:")
+                        st.info(
+                            "Username once set can not be changed.",
+                            icon=":material/info:",
+                        )
 
-                        cola, colb, colc, cold = st.columns(4, vertical_alignment='center')
+                        cola, colb, colc, cold = st.columns(
+                            4, vertical_alignment="center"
+                        )
 
                         with cola:
                             input_username = st.text_input(
-                                "Username", 
-                                placeholder='Username',
+                                "Username",
+                                placeholder="Username",
                                 max_chars=20,
                             )
 
@@ -3392,49 +3498,90 @@ if __name__ == "__main__":
 
                             input_dob = st.date_input(
                                 "Date of Birth",
-                                min_value=today.replace(year=today.year - 100) if not (today.month == 2 and today.day == 29 and not date(today.year - 100, 1, 1).strftime('%Y%m%d')[3] == '0' and (today.year - 100) % 4 != 0) else today.replace(year=today.year - 100, month=3, day=1),
-                                max_value=(lambda t: t.replace(year=t.year - 18) if not (t.month == 2 and t.day == 29 and not ((t.year - 18) % 4 == 0 and ((t.year - 18) % 100 != 0 or (t.year - 18) % 400 == 0))) else t.replace(year=t.year - 18, month=3, day=1))(date.today()),
+                                min_value=(
+                                    today.replace(year=today.year - 100)
+                                    if not (
+                                        today.month == 2
+                                        and today.day == 29
+                                        and not date(today.year - 100, 1, 1).strftime(
+                                            "%Y%m%d"
+                                        )[3]
+                                        == "0"
+                                        and (today.year - 100) % 4 != 0
+                                    )
+                                    else today.replace(
+                                        year=today.year - 100, month=3, day=1
+                                    )
+                                ),
+                                max_value=(
+                                    lambda t: (
+                                        t.replace(year=t.year - 18)
+                                        if not (
+                                            t.month == 2
+                                            and t.day == 29
+                                            and not (
+                                                (t.year - 18) % 4 == 0
+                                                and (
+                                                    (t.year - 18) % 100 != 0
+                                                    or (t.year - 18) % 400 == 0
+                                                )
+                                            )
+                                        )
+                                        else t.replace(year=t.year - 18, month=3, day=1)
+                                    )
+                                )(date.today()),
                                 format="YYYY-MM-DD",
                             )
 
                         with colc:
                             input_gender = st.selectbox(
-                                "Gender", 
-                                ['Male', 'Female', 'Non-binary', 'Other'],
-                                index=None, 
-                                placeholder='Select Gender',
+                                "Gender",
+                                ["Male", "Female", "Non-binary", "Other"],
+                                index=None,
+                                placeholder="Select Gender",
                             )
 
                         with cold:
                             input_email = st.text_input(
-                                "Email Address", 
-                                value=None if not hasattr(st.user, "email") else st.user.email,
+                                "Email Address",
+                                value=(
+                                    None
+                                    if not hasattr(st.user, "email")
+                                    else st.user.email
+                                ),
                                 disabled=True if hasattr(st.user, "email") else False,
                             )
 
                         input_profile_picture = st.file_uploader(
                             "Profile Picture (Optional)",
                             type=["jpg", "jpeg", "png"],
-                            accept_multiple_files=False,   
+                            accept_multiple_files=False,
                         )
 
-                        cola, colb, _ = st.columns([1.25, 0.25, 2.55], vertical_alignment='center')
+                        cola, colb, _ = st.columns(
+                            [1.25, 0.25, 2.55], vertical_alignment="center"
+                        )
 
                         if cola.form_submit_button(
-                            "Save and Continue", 
+                            "Save and Continue",
                             icon=":material/arrow_circle_right:",
                             use_container_width=True,
-                            type='primary',
+                            type="primary",
                         ):
-                            progress_bar = st.progress(15, text="Setting up your New LogIQ account...")
+                            progress_bar = st.progress(
+                                15, text="Setting up your New LogIQ account..."
+                            )
 
-                            all_fields_filled = bool(input_first_name.strip()) and \
-                                bool(input_last_name.strip()) and \
-                                bool(input_phone_number.strip()) and \
-                                bool(input_username.strip()) and \
-                                bool(input_gender) and \
-                                bool(input_dob) and bool(input_email.strip())
-                            
+                            all_fields_filled = (
+                                bool(input_first_name.strip())
+                                and bool(input_last_name.strip())
+                                and bool(input_phone_number.strip())
+                                and bool(input_username.strip())
+                                and bool(input_gender)
+                                and bool(input_dob)
+                                and bool(input_email.strip())
+                            )
+
                             if not all_fields_filled:
                                 st.warning(
                                     f"Username '{input_username.strip()}' is already taken. Please choose another.",
@@ -3457,7 +3604,7 @@ if __name__ == "__main__":
                             profile_picture_url = False
 
                             progress_bar.progress(
-                                55, 
+                                55,
                                 "Just a moment while we personalize your experience...",
                             )
 
@@ -3472,15 +3619,17 @@ if __name__ == "__main__":
                                             file=input_profile_picture,
                                         )
                                     )
-                                
+
                                 except Exception as error:
                                     profile_picture_url = False
                                     st.warning(
-                                        "Unable to save profile picture", icon=":material/warning:"
+                                        "Unable to save profile picture",
+                                        icon=":material/warning:",
                                     )
 
                             progress_bar.progress(
-                                85, "Almost there! Getting ready to welcome you...",
+                                85,
+                                "Almost there! Getting ready to welcome you...",
                             )
 
                             model_customers = ModelCustomers()
@@ -3518,15 +3667,15 @@ if __name__ == "__main__":
                                     Oops! Something went wrong. Please try 
                                     again or contact support if the issue 
                                     persists.
-                                    """, 
-                                    icon=":material/error:"
+                                    """,
+                                    icon=":material/error:",
                                 )
 
                         if colb.form_submit_button(
                             "",
                             icon=":material/logout:",
                             use_container_width=True,
-                            help='Log Out'
+                            help="Log Out",
                         ):
                             st.session_state.clear()
                             st.cache_data.clear()

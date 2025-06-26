@@ -14,6 +14,7 @@ from ...tools.customer_agent_tools import (
     get_appliance_specifications_tool,
     update_customer_appliance_details_tool,
     delete_customer_appliance_tool,
+    get_all_customer_appliances_callback_func,
 )
 
 warnings.filterwarnings("ignore")
@@ -24,18 +25,21 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
 
     if "customer_appliances" not in state:
         try:
-            customer_appliances = get_all_customer_appliances_tool(
+            customer_appliances = get_all_customer_appliances_callback_func(
                 customer_id=callback_context.state["customer_id"],
                 limit=-1,
             )
         except Exception as error:
             customer_appliances = {
-                "Data Unavailable. Use get_all_customer_appliances_tool()"}
+                "Data Unavailable. Use `get_all_customer_appliances_tool()`"}
 
         state["customer_appliances"] = customer_appliances
 
     if "start_time" not in state:
         state["start_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if "current_date" not in state:
+        state["current_date"] = datetime.now().strftime("%Y-%m-%d")
 
     print("\t...delegating to customer_appliances_agent()")
 

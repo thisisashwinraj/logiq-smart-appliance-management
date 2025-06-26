@@ -13,6 +13,7 @@ from ...tools.customer_agent_tools import (
     get_customer_details_tool,
     update_customer_details_tool,
     validate_and_format_address_tool,
+    get_customer_details_callback_func,
 )
 
 warnings.filterwarnings("ignore")
@@ -23,7 +24,7 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
 
     if "customer_details" not in state:
         try:
-            customer_details = get_customer_details_tool(
+            customer_details = get_customer_details_callback_func(
                 customer_id=state["customer_id"],
             )
         except Exception as error:

@@ -46,10 +46,13 @@ LogIQ's customer agent is a multi-agent system designed to streamline home appli
     - **Google Auth Platform:** Provides secure user authentication and session management, using Google Oauth2
     - **Google Maps SDK:** Address auto-complete, validation, geocoding, and distance-based engineer assignment
 
-1. **Frontend and Communication Services**
+3. **Frontend and Communication**
     - **Streamlit:** Python-based frontend with support for custom components, & CSS to enhance the user interface
     - **Brevo:** Sends automated transactional and notification emails—such as service confirmations, and reminders
     - **Twilio:** For delivering realtime SMS alert to users about service status updates, and engineer visit notification
+
+## Customer Agent Architecture
+![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/architecture/customer_agent_architecture.png)
 
 ## Data Sources
 The appliance dataset used in this project is entirely synthetic and was generated for demonstration purposes. Brand names, descriptions, and other technical specifications were fabricated using **Gemini 2.5** to simulate realistic product metadata across various categories such as refrigerators, washers & dryers, gas ranges and microwave ovens. Such an approach allowed for consistent, & scalable data creation without relying on any proprietary or sensitive information.
@@ -93,10 +96,10 @@ For implementing **Retrieval-Augmented Generation (RAG)** workflow, publicly ava
 
 ![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/chat/product_enquiry/chat_product_enquiry_5.PNG)
 
-To view the example screenshots of all the agents, click [here](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/tree/main/assets/screenshots/chat)
+To view the example of multi-turn conversations of all the agents in the customer agent system, click [here](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/tree/main/assets/screenshots/chat)
 
 ## Authors
 - [Ashwin Raj (@thisisashwinraj)](https://www.github.com/thisisashwinraj)
 
 ## Support and Feedback
-Contributions are always welcome from the community. If you have any queries or would like to share some feedback, please drop a line at thisisashwinraj@gmail.com. You can also connect with the author on [LinkedIn](https://www.linkedin.com/in/thisisashwinraj/).
+Contributions are always welcome from the community. If you have any queries or would like to share any feedback, please drop a line at thisisashwinraj@gmail.com. You can also connect with the author on [LinkedIn](https://www.linkedin.com/in/thisisashwinraj/).

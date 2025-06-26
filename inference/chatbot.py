@@ -1,9 +1,12 @@
+import warnings
 import streamlit as st
 
 from google import genai
 from google.genai import types
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
+
+warnings.filterwarnings("ignore")
 
 
 class ServiceEngineerChatbot:

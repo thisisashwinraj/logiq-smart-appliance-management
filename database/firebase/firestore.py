@@ -1,9 +1,12 @@
 import bcrypt
 import random
+import warnings
 from datetime import datetime, timedelta
 
 import firebase_admin
 from firebase_admin import credentials, firestore
+
+warnings.filterwarnings("ignore")
 
 
 class OnsiteServiceRequestCollection:

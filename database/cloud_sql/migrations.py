@@ -1,8 +1,12 @@
+import warnings
 import sqlalchemy
+
 import streamlit as st
 
 from google.cloud.sql.connector import Connector
 from google.oauth2.service_account import Credentials
+
+warnings.filterwarnings("ignore")
 
 
 class MigrateAppliances:
