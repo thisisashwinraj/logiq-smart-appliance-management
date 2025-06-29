@@ -2,17 +2,17 @@
 
 Managing home appliances often involves juggling manuals, service calls and scattered records — a highly frustrating experience for many homeowners. With the rise of Agentic AI design framework, there's an opportunity to streamline and improve this process aptly through intelligent systems that can understand, guide, and act on behalf of the users.
 
-This project showcases LogIQ - a fictional home appliance manufacturer that offers an AI-powered application to help customers seamlessly manage their household devices. At the core of the app is a smart assistant—an  AI chatbot that helps users manage their registered appliances, raise service requests, and look up information about appliance care and maintenance. The chatbot integrates seamlessly with the app, allowing users to interact with its features manually through the interface or switch to **AI mode** for a guided, chat-based experience. Watch the Customer App demo [here](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/tree/main?tab=readme-ov-file#screenshots)
+This project showcases LogIQ - a fictional home appliance manufacturer that offers an AI-powered application to help customers seamlessly manage their household devices. At the core of the app is a smart assistant—an  AI chatbot that helps users manage their registered appliances, raise service requests, and look for information about appliance care and maintenance. The chatbot integrates seamlessly with the app, allowing users to interact with its features manually through the interface or switch to **AI mode** for a guided, chat-based experience. Watch the Customer App demo [here](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/tree/main?tab=readme-ov-file#screenshots)
 
 ## Customer App Features
 
 The web app is a **smart home appliance management platform** designed to streamline and enhance how customers interact with their household devices. The app provides a clean, intuitive interface and several key features that make appliance ownership & support effortless. Some of the key aspects of the customer application are as described here:
 
-- **Register Appliances:** Easily register new household appliances with model, serial number, and purchase details
+- **Register Appliances:** Easily register new appliances with their model number, serial number and purchase details
 - **Raise Service Requests:** Log & manage service requests for registered appliances, to get onsite professional help
 - **View Appliances Details:** Access centralized view of all registered appliances with warranty, specs & support info
-- **View Service Requests Status:** Track ongoing and past service requests, including live status & engineer details
-- **Manage Customer Profile:** Edit & update customer information, including contact details and service preferences
+- **View Service Requests Status:** Track ongoing and past service requests, including live status and engineer details
+- **Manage Customer Profile**: Edit & update customer information, including contact details and service preferences
 
 ![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/logiq_home_1.PNG)
 
@@ -46,7 +46,7 @@ LogIQ's customer agent is a multi-agent system designed to streamline home appli
     - **Google Auth Platform:** Provides secure user authentication and session management, using Google Oauth2
     - **Google Maps SDK:** Address auto-complete, validation, geocoding, and distance-based engineer assignment
 
-3. **Frontend and Communication**
+3. **Frontend and Communication Services**
     - **Streamlit:** Python-based frontend with support for custom components, & CSS to enhance the user interface
     - **Brevo:** Sends automated transactional and notification emails—such as service confirmations, and reminders
     - **Twilio:** For delivering realtime SMS alert to users about service status updates, and engineer visit notification
@@ -96,10 +96,10 @@ For implementing **Retrieval-Augmented Generation (RAG)** workflow, publicly ava
 
 ![](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/blob/main/assets/screenshots/chat/product_enquiry/chat_product_enquiry_5.PNG)
 
-To view the example of multi-turn conversations of all the agents in the customer agent system, click [here](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/tree/main/assets/screenshots/chat)
+To view examples of multi-turn conversations for all the agents in the customer support agent team, head to [assets/screenshots](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/tree/main/assets/screenshots/chat)
 
 ## Authors
 - [Ashwin Raj (@thisisashwinraj)](https://www.github.com/thisisashwinraj)
 
 ## Support and Feedback
-Contributions are always welcome from the community. If you have any queries or would like to share any feedback, please drop a line at thisisashwinraj@gmail.com. You can also connect with the author on [LinkedIn](https://www.linkedin.com/in/thisisashwinraj/).
+Contributions are always welcome from the community. If you have any queries or would like to share any feedback, please drop a line at thisisashwinraj@gmail.com. You can also connect with the author on [LinkedIn](https://www.linkedin.com/in/thisisashwinraj/), or [X (previously Twitter)](https://x.com/thisisashwinraj).

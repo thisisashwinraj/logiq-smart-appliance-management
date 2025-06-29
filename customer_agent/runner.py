@@ -1,8 +1,8 @@
 import os
 import asyncio
 import streamlit as st
-import time as py_time_module
 from typing import Tuple
+import time as py_time_module
 from dotenv import load_dotenv
 
 from google.adk.runners import Runner
@@ -30,17 +30,11 @@ def _run_coroutine_in_new_loop(coro):
 
 @st.cache_resource
 def initialize_adk(user_id: str) -> Tuple:
-    """
-    Initializes the ADK Runner and InMemorySessionService for the application.
-    Manages the unique ADK session ID within the Streamlit session state.
-    Returns:
-        tuple: (Runner instance, active ADK session ID)
-    """
     APP_NAME = "LogIQ Customer App"
 
     initial_state = {
         "customer_full_name": st.session_state.customer_name,
-        "customer_id": st.session_state.customer_id,
+        "customer_id": user_id,
     }
 
     session_service = InMemorySessionService()

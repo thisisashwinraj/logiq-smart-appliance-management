@@ -1,12 +1,18 @@
+import os
 import warnings
 from typing import Optional
 from datetime import datetime
 
 from google.genai import types
 from google.adk.agents import Agent
+from google.adk.models.lite_llm import LiteLlm
 from google.adk.agents.callback_context import CallbackContext
 
-from ...config import MODEL_NAME, MODEL_MAX_TOKENS, MODEL_TEMPERATURE
+from ...config import (
+    MODEL_GEMINI_2_5_FLASH, 
+    MODEL_MAX_TOKENS, 
+    MODEL_TEMPERATURE,
+)
 from .prompts import UPDATE_CUSTOMER_PROFILE_AGENT_INSTRUCTIONS
 
 from ...tools.customer_agent_tools import (
@@ -44,7 +50,7 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
 
 update_customer_profile_agent = Agent(
     name="update_customer_profile_agent",
-    model=MODEL_NAME,
+    model=MODEL_GEMINI_2_5_FLASH,
     description="""
     Agent to help customers update their personal profile and contact details. 
     This agent can update and query user's first and last name, date of birth, 

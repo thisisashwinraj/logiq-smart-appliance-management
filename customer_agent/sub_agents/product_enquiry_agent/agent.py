@@ -1,3 +1,4 @@
+import os
 import warnings
 from typing import Optional
 from datetime import datetime
@@ -5,8 +6,13 @@ from datetime import datetime
 from google.genai import types
 from google.adk.agents import Agent
 from google.adk.agents.callback_context import CallbackContext
+from google.adk.models.lite_llm import LiteLlm
 
-from ...config import MODEL_NAME, MODEL_MAX_TOKENS, MODEL_TEMPERATURE
+from ...config import (
+    MODEL_GEMINI_2_FLASH_LITE, 
+    MODEL_MAX_TOKENS, 
+    MODEL_TEMPERATURE,
+)
 from .prompts import PRODUCT_ENQUIRY_AGENT_INSTRUCTIONS
 
 from ...tools.customer_agent_tools import (
@@ -37,12 +43,14 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
 
 product_enquiry_agent = Agent(
     name="product_enquiry_agent",
-    model=MODEL_NAME,
+    model=MODEL_GEMINI_2_FLASH_LITE,
     description="""
-    Agent to help customers query details of various different appliances. This 
-    agent does not answer queries related to customer-appliances; instead, it 
-    queries details about all appliances from multiple brands registered with 
-    LogIQ.
+    Agent to help customers query the details of various different appliances 
+    offered by LogIQ. This agent does not answer queries related to customer 
+    appliances; instead, it queries details about all appliances from multiple 
+    brands registered with LogIQ. It can provide information about available 
+    products/appliances, their specifications (such as dimensions, colors etc), 
+    tagged price, and more.
     """,
     instruction=PRODUCT_ENQUIRY_AGENT_INSTRUCTIONS,
     include_contents="default",

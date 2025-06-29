@@ -1,8 +1,5 @@
 import asyncio
 import warnings
-
-import streamlit as st
-from datetime import datetime
 from dotenv import load_dotenv
 
 from google.genai import types
@@ -14,8 +11,7 @@ from customer_agent.agent import root_agent
 warnings.filterwarnings("ignore")
 
 
-if "customer_id" not in st.session_state:
-    st.session_state.customer_id = "testcustomer"
+USER_ID = str(input("Enter your customer id: "))
 
 load_dotenv()
 warnings.filterwarnings("ignore")
@@ -24,7 +20,7 @@ in_memory_session_service = InMemorySessionService()
 
 initial_state = {
     "customer_full_name": "Test Customer",
-    "customer_id": "testcustomer",
+    "USER_ID": USER_ID,
 }
 
 
@@ -53,7 +49,6 @@ async def call_agent_async(runner, user_id, session_id, query):
 
 async def main_async():
     APP_NAME = "LogIQ Customer Agent"
-    USER_ID = "amritharaj"
 
     new_session = await in_memory_session_service.create_session(
         app_name=APP_NAME,
@@ -70,7 +65,7 @@ async def main_async():
         session_service=in_memory_session_service,
     )
 
-    print("\nWelcome to LogIQ's Customer Agent Chat!")
+    print("\nWelcome to LogIQ's Customer Agent Sandbox!")
     print("Type 'exit' or 'quit' to end the conversation.\n")
 
     while True:

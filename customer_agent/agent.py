@@ -1,9 +1,11 @@
+import os
 import warnings
 
 from google.genai import types
 from google.adk.agents import Agent
+from google.adk.models.lite_llm import LiteLlm
 
-from .config import MODEL_NAME, MODEL_MAX_TOKENS, MODEL_TEMPERATURE
+from .config import MODEL_DEEPSEEK_V3, MODEL_MAX_TOKENS, MODEL_TEMPERATURE
 from .prompts import ROOT_AGENT_INSTRUCTIONS, GLOBAL_INSTRUCTIONS
 
 from .sub_agents.appliance_support_and_troubleshooting_agent.agent import (
@@ -25,7 +27,10 @@ warnings.filterwarnings("ignore")
 
 root_agent = Agent(
     name="customer_agent",
-    model=MODEL_NAME,
+    model=LiteLlm(
+        model=MODEL_DEEPSEEK_V3,
+        api_key=os.getenv("OPENROUTER_API_KEY")
+    ),
     description="""
     Customer service agent for LogIQ - a customer support application for 
     household appliances like refrigerators, gas ranges, microwave ovens etc.

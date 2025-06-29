@@ -1,3 +1,4 @@
+import os
 import warnings
 from typing import Optional
 from datetime import datetime
@@ -5,8 +6,13 @@ from datetime import datetime
 from google.genai import types
 from google.adk.agents import Agent
 from google.adk.agents.callback_context import CallbackContext
+from google.adk.models.lite_llm import LiteLlm
 
-from ...config import MODEL_NAME, MODEL_MAX_TOKENS, MODEL_TEMPERATURE
+from ...config import (
+    MODEL_MAX_TOKENS, 
+    MODEL_MISTRAL_SMALL_3_2, 
+    MODEL_TEMPERATURE, 
+)
 from .prompts import CUSTOMER_APPLIANCES_AGENT_INSTRUCTIONS
 
 from ...tools.customer_agent_tools import (
@@ -41,14 +47,15 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
     if "current_date" not in state:
         state["current_date"] = datetime.now().strftime("%Y-%m-%d")
 
-    print("\t...delegating to customer_appliances_agent()")
-
     return None
 
 
 customer_appliances_agent = Agent(
     name="customer_appliances_agent",
-    model=MODEL_NAME,
+    model=LiteLlm(
+        model=MODEL_MISTRAL_SMALL_3_2,
+        api_key=os.getenv("OPENROUTER_API_KEY")
+    ),
     description="""
     Agent to help customers query and update details of their registered 
     appliances. This agent can NOT register a new appliances, but can delete an 

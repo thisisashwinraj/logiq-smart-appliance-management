@@ -10,7 +10,11 @@ from google.adk.agents.callback_context import CallbackContext
 from google.adk.tools.retrieval.vertex_ai_rag_retrieval import VertexAiRagRetrieval
 
 from vertexai import rag
-from ...config import MODEL_NAME, MODEL_MAX_TOKENS, MODEL_TEMPERATURE
+from ...config import (
+    MODEL_GEMINI_2_5_FLASH, 
+    MODEL_MAX_TOKENS, 
+    MODEL_TEMPERATURE,
+)
 from .prompts import APPLIANCE_SUPPORT_AND_TROUBLESHOOTING_AGENT_INSTRUCTIONS
 
 load_dotenv()
@@ -48,7 +52,7 @@ retrieve_service_manual_corpora_tool = VertexAiRagRetrieval(
 
 appliance_support_and_troubleshooting_agent = Agent(
     name="appliance_support_and_troubleshooting_agent",
-    model=MODEL_NAME,
+    model=MODEL_GEMINI_2_5_FLASH,
     description="""
     Agent to assist customers by answering appliance-related queries limited to 
     usage, cleaning, maintenance, and general product information. This agent 

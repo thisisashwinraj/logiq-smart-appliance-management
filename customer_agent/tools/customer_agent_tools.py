@@ -1731,17 +1731,21 @@ def get_filtered_appliances_tool(
     brand, category, energy rating, etc., ensuring only available products are
     returned.
 
-    ALLOWED_FILTER_KEYS = {
-        'model_number', 'brand', 'category', 'sub_category',
-    }
+    It can return the following information about the available appliances: 
+    `appliance_name`, `warranty_period`, `model_number`, `brand`, `category`, 
+    `sub_category`, `launch_date`, and `energy_rating`.
 
     Args:
         filters (Dict): Dictionary where keys are appliance attributes (column
                         names) and values are the desired filter values.
-                        Example: {'brand': 'Amana', 'category': 'Refrigerator'}
+                            - ALLOWED_FILTER_KEYS = {
+                                'model_number', 'category', 'sub_category', 
+                                'brand'}
+                            - Example: {
+                                'brand': 'Solana', 'category': 'Gas Range'}
 
     Returns:
-        Dict: Dictionary containing the status and either a list of available
+        Dict: Dictionary containing the status, and either a list of available
               appliances (each as a dictionary) or an error message.
     """
     ALLOWED_FILTER_KEYS = {
@@ -1817,21 +1821,17 @@ def get_appliance_specifications_tool(
     Retrieves the detailed appliance specifications for a given appliance model
     number from Firestore.
 
-    This tool connects to Firestore database to fetch technical specifications
-    and features associated with a specific appliance model.
+    This tool connects to Firestore database to fetch technical specifications,
+    price, and features associated with a specific appliance model.
 
     Args:
         model_number (str): Unique identifier for the appliance model.
-                            (e.g., "NDG2335AW", "PDET920AY/M/B"). This tool
-                            automatically handles '/' characters in the model
-                            number by replacing them with underscores for
-                            Firestore document ID compatibility.
+                            (e.g., "NDG2335AW", "PDET920AY/M/B").
 
     Returns:
         Dict[str, Any]: Dictionary containing the status of the operation and
                         either the appliance specifications or an error message
 
-                        The dictionary can have the following structure:
                         - If successful:
                             {
                                 "status": "success",
@@ -1842,14 +1842,8 @@ def get_appliance_specifications_tool(
                                 }
                             }
                             where "appliance_specifications" is a dictionary
-                            containing the retrieved data.
-
-                        - If appliance specifications not found for this model:
-                            {
-                                "status": "error",
-                                "appliance_specifications": "Appliance
-                                specifications are unavailable for this model"
-                            }
+                            containing data if found, else a message indicating 
+                            no data found for the model number.
 
                         - If an internal error occurs:
                             {

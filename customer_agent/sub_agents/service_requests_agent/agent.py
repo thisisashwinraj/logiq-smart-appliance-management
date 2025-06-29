@@ -1,3 +1,4 @@
+import os
 import warnings
 from typing import Optional
 from datetime import datetime
@@ -5,8 +6,13 @@ from datetime import datetime
 from google.genai import types
 from google.adk.agents import Agent
 from google.adk.agents.callback_context import CallbackContext
+from google.adk.models.lite_llm import LiteLlm
 
-from ...config import MODEL_NAME, MODEL_MAX_TOKENS, MODEL_TEMPERATURE
+from ...config import (
+    MODEL_GEMINI_2_5_FLASH, 
+    MODEL_MAX_TOKENS, 
+    MODEL_TEMPERATURE,
+)
 from .prompts import ONSITE_SERVICE_REQUEST_AGENT_INSTRUCTIONS
 
 from ...tools.customer_agent_tools import (
@@ -47,7 +53,7 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
 
 service_requests_agent = Agent(
     name="service_requests_agent",
-    model=MODEL_NAME,
+    model=MODEL_GEMINI_2_5_FLASH,
     description="""
     Agent to help customers query and update details of their service requests. 
     This agent can NOT register a new service request ticket, but can update or 

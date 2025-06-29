@@ -6,7 +6,7 @@ from google.genai import types
 from google.adk.agents import Agent
 from google.adk.agents.callback_context import CallbackContext
 
-from ...config import MODEL_NAME, MODEL_MAX_TOKENS, MODEL_TEMPERATURE
+from ...config import MODEL_GEMINI_2_5_PRO, MODEL_MAX_TOKENS, MODEL_TEMPERATURE
 from .prompts import APPLIANCE_REGISTRATION_AGENT_INSTRUCTIONS
 
 from ...tools.customer_agent_tools import (
@@ -44,7 +44,7 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
 
 register_appliance_agent = Agent(
     name="register_appliance_agent",
-    model=MODEL_NAME,
+    model=MODEL_GEMINI_2_5_PRO,
     description="""
     Agent to help the customers register a new appliance to their profile. This 
     agent can NOT answer questions about appliance details.
