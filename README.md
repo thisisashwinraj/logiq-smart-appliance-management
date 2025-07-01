@@ -1,12 +1,12 @@
 # LogIQ: Smart Appliance Management
 
-Managing home appliances often involves juggling manuals, service calls and scattered records — a highly frustrating experience for many homeowners. With the rise of **Agentic AI** design framework, there's an opportunity to streamline and improve this process aptly through **intelligent systems** that can understand, guide, and act on behalf of the users
+<P align='justify'>Managing home appliances often involves juggling manuals, service calls and scattered records — a highly frustrating experience for many homeowners. With the rise of <B>Agentic AI</B> design framework, there's an opportunity to streamline and improve this process aptly through <B>intelligent systems</B> that can understand, guide, and act on behalf of the users</P>
 
-This project showcases LogIQ - a fictional home appliance manufacturer that offers an AI-powered application to help customers seamlessly manage their household devices. At the core of the app is a smart assistant—an  AI chatbot that helps users manage their **registered appliances**, **raise service requests** and look for information about **appliance care and maintenance**. The chatbot integrates seamlessly with the app allowing users to interact with its features manually through the interface or switch to **AI Mode** for a guided, chat-based experience. Watch the **customer app demo** [here](https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/tree/main?tab=readme-ov-file#screenshots)
+<P align='justify'>This project showcases LogIQ - a fictional home appliance manufacturer that offers an AI-powered application to help customers seamlessly manage their household devices. At the core of the app is a smart assistant—an  AI chatbot that helps users manage their <B>registered appliances</B> <B>raise service requests</B> and look for information about <B>appliance care and maintenance</B>. The chatbot integrates seamlessly with the app allowing users to interact with its features manually through the interface or switch to <B>AI Mode</B> for a guided, chat-based experience. Watch the <B>customer app demo</B> <a href='https://github.com/thisisashwinraj/LogIQ-Smart-Appliance-Management/tree/main?tab=readme-ov-file#screenshots'>here</a></P>
 
 ## Customer App Features
 
-The web app is a **smart home appliance management platform** designed to streamline and enhance how customers interact with their household devices. The app provides a clean, intuitive interface, and several key features that make appliance ownership & support effortless. Some of the key aspects of the customer application are as described here:
+<P align='justify'>The web app is a <B>smart home appliance management platform</B> designed to streamline and enhance how customers interact with their household devices. The app provides a clean, intuitive interface, and several key features that make appliance ownership & support effortless. Some of the key aspects of the customer application are as described here:</P>
 
 - **Register Appliances:** Easily register new appliances with their model number, serial number, and purchase details
 - **Raise Service Requests:** Log & manage service requests for registered appliances, to get onsite professional help
@@ -18,7 +18,7 @@ The web app is a **smart home appliance management platform** designed to stream
 
 ## Customer Agent Features
 
-**LogIQ's customer agent** is a **multi-agent system** designed to streamline home appliance management and customer support. It uses **Google Agent Development Kit (ADK)** to enable intelligent context-aware interactions across agents.
+<P align='justify'><B>LogIQ's customer agent</B> is a <B>multi-agent system</B> designed to streamline home appliance management and customer support. It uses <B>Google Agent Development Kit (ADK)</B> to enable intelligent context-aware interactions across agents.</P>
 
 - **appliance_troubleshooting_agent:** Handles complex appliance issues, and offers usersafe troubleshooting advice
 - **customer_appliances_agent**: Retrieves and summarizes information about all of customer’s registered appliances
@@ -52,7 +52,7 @@ The web app is a **smart home appliance management platform** designed to stream
     - **Brevo:** Sends automated transactional and notification emails—such as service confirmations, and reminders
 
 ## Customer Agent Architecture
-**LogIQ** primarily integrates **Gemini 2.5 Pro**, **Gemini 2.5 Flash**, and **Gemini 2.5 Flash Lite** for high-performance tasks. It also integrates with **open-weight models** like **Mistral Small 3.2**, and **DeepSeek-V3** for flexible backend orchestration.
+<P align='justify'><B>LogIQ</B> primarily integrates <B>Gemini 2.5 Pro</B>, <B>Gemini 2.5 Flash</B>, and <B>Gemini 2.5 Flash Lite</B> for high-performance tasks. It also integrates with <B>open-weight models</B> like <B>Mistral Small 3.2</B>, and <B>DeepSeek-V3</B> for flexible backend orchestration.</P>
 
 ![](https://github.com/thisisashwinraj/LogIQ-Cloud-Services/blob/main/assets/architecture/customer_agent_architecture.png)
 
