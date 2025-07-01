@@ -1,29 +1,47 @@
+# Copyright 2025 Ashwin Raj
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import os
+import json
 import warnings
 import sqlalchemy
+
 import streamlit as st
+from dotenv import load_dotenv
 
 from google.cloud.sql.connector import Connector
 from google.oauth2.service_account import Credentials
 
+load_dotenv()
 warnings.filterwarnings("ignore")
 
 
 class Appliances:
     def __init__(self):
-        credentials = Credentials.from_service_account_file(
-            "config/cloud_sql_editor_service_account_key.json"
+        credentials = Credentials.from_service_account_info(
+            json.loads(st.secrets["CLOUD_SQL_SERVICE_ACCOUNT_KEY"])
         )
 
         self.connector = Connector(credentials=credentials)
-        self.db_password = st.secrets["CLOUD_SQL_PASSWORD"]
 
     def _get_connection(self):
         conn = self.connector.connect(
-            "logiq-project:us-central1:logiq-mysql-db",
-            "pymysql",
-            user="root",
-            password=self.db_password,
-            db="logiq_db",
+            st.secrets["CLOUD_SQL_MYSQL_INSTANCE_CONNECTION_STRING"],
+            st.secrets["CLOUD_SQL_MYSQL_DRIVER"],
+            user=st.secrets["CLOUD_SQL_MYSQL_USER"],
+            password=st.secrets["CLOUD_SQL_PASSWORD"],
+            db=st.secrets["CLOUD_SQL_MYSQL_DB"],
         )
         return conn
     
@@ -321,20 +339,19 @@ class Appliances:
 
 class QueryCustomerAppliances:
     def __init__(self):
-        credentials = Credentials.from_service_account_file(
-            "config/cloud_sql_editor_service_account_key.json"
+        credentials = Credentials.from_service_account_info(
+            json.loads(st.secrets["CLOUD_SQL_SERVICE_ACCOUNT_KEY"])
         )
 
         self.connector = Connector(credentials=credentials)
-        self.db_password = st.secrets["CLOUD_SQL_PASSWORD"]
 
     def _get_connection(self):
         conn = self.connector.connect(
-            "logiq-project:us-central1:logiq-mysql-db",
-            "pymysql",
-            user="root",
-            password=self.db_password,
-            db="logiq_db",
+            st.secrets["CLOUD_SQL_MYSQL_INSTANCE_CONNECTION_STRING"],
+            st.secrets["CLOUD_SQL_MYSQL_DRIVER"],
+            user=st.secrets["CLOUD_SQL_MYSQL_USER"],
+            password=st.secrets["CLOUD_SQL_PASSWORD"],
+            db=st.secrets["CLOUD_SQL_MYSQL_DB"],
         )
         return conn
 
@@ -476,20 +493,19 @@ class QueryCustomerAppliances:
 
 class QueryCustomers:
     def __init__(self):
-        credentials = Credentials.from_service_account_file(
-            "config/cloud_sql_editor_service_account_key.json"
+        credentials = Credentials.from_service_account_info(
+            json.loads(st.secrets["CLOUD_SQL_SERVICE_ACCOUNT_KEY"])
         )
 
         self.connector = Connector(credentials=credentials)
-        self.db_password = st.secrets["CLOUD_SQL_PASSWORD"]
 
     def _get_connection(self):
         conn = self.connector.connect(
-            "logiq-project:us-central1:logiq-mysql-db",
-            "pymysql",
-            user="root",
-            password=self.db_password,
-            db="logiq_db",
+            st.secrets["CLOUD_SQL_MYSQL_INSTANCE_CONNECTION_STRING"],
+            st.secrets["CLOUD_SQL_MYSQL_DRIVER"],
+            user=st.secrets["CLOUD_SQL_MYSQL_USER"],
+            password=st.secrets["CLOUD_SQL_PASSWORD"],
+            db=st.secrets["CLOUD_SQL_MYSQL_DB"],
         )
         return conn
 
@@ -619,20 +635,19 @@ class QueryCustomers:
 
 class QueryEngineers:
     def __init__(self):
-        credentials = Credentials.from_service_account_file(
-            "config/cloud_sql_editor_service_account_key.json"
+        credentials = Credentials.from_service_account_info(
+            json.loads(st.secrets["CLOUD_SQL_SERVICE_ACCOUNT_KEY"])
         )
 
         self.connector = Connector(credentials=credentials)
-        self.db_password = st.secrets["CLOUD_SQL_PASSWORD"]
 
     def _get_connection(self):
         conn = self.connector.connect(
-            "logiq-project:us-central1:logiq-mysql-db",
-            "pymysql",
-            user="root",
-            password=self.db_password,
-            db="logiq_db",
+            st.secrets["CLOUD_SQL_MYSQL_INSTANCE_CONNECTION_STRING"],
+            st.secrets["CLOUD_SQL_MYSQL_DRIVER"],
+            user=st.secrets["CLOUD_SQL_MYSQL_USER"],
+            password=st.secrets["CLOUD_SQL_PASSWORD"],
+            db=st.secrets["CLOUD_SQL_MYSQL_DB"],
         )
         return conn
 
@@ -764,20 +779,19 @@ class QueryEngineers:
 
 class QueryServiceGuides:
     def __init__(self):
-        credentials = Credentials.from_service_account_file(
-            "config/cloud_sql_editor_service_account_key.json"
+        credentials = Credentials.from_service_account_info(
+            json.loads(st.secrets["CLOUD_SQL_SERVICE_ACCOUNT_KEY"])
         )
 
         self.connector = Connector(credentials=credentials)
-        self.db_password = st.secrets["CLOUD_SQL_PASSWORD"]
 
     def _get_connection(self):
         conn = self.connector.connect(
-            "logiq-project:us-central1:logiq-mysql-db",
-            "pymysql",
-            user="root",
-            password=self.db_password,
-            db="logiq_db",
+            st.secrets["CLOUD_SQL_MYSQL_INSTANCE_CONNECTION_STRING"],
+            st.secrets["CLOUD_SQL_MYSQL_DRIVER"],
+            user=st.secrets["CLOUD_SQL_MYSQL_USER"],
+            password=st.secrets["CLOUD_SQL_PASSWORD"],
+            db=st.secrets["CLOUD_SQL_MYSQL_DB"],
         )
         return conn
 
@@ -813,8 +827,3 @@ class QueryServiceGuides:
             result = db_conn.execute(query)
 
             return result.fetchall()
-
-
-if __name__ == "__main__":
-    ap = QueryCustomers()
-    print(ap.fetch_username_by_customer_email_id('rajashwin812@gmail.com'))

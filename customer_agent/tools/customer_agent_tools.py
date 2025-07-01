@@ -1,9 +1,25 @@
+# Copyright 2025 Ashwin Raj
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import os
+import json
 import random
 import requests
 import warnings
-import googlemaps
 import streamlit as st
 from typing import Any, Dict
+from dotenv import load_dotenv
 
 import dateutil
 from datetime import date, datetime, timedelta
@@ -12,16 +28,18 @@ import sqlalchemy
 import firebase_admin
 from firebase_admin import credentials, firestore
 
+import googlemaps
 from google.cloud.sql.connector import Connector
 from google.oauth2.service_account import Credentials
 from google.adk.tools.tool_context import ToolContext
 
+load_dotenv()
 warnings.filterwarnings("ignore")
 
 
 def _initialize_cloud_sql_mysql_db():
-    credentials = Credentials.from_service_account_file(
-        "config/cloud_sql_editor_service_account_key.json"
+    credentials = Credentials.from_service_account_info(
+        json.loads(st.secrets["CLOUD_SQL_SERVICE_ACCOUNT_KEY"])
     )
 
     connector = Connector(credentials=credentials)
@@ -45,7 +63,9 @@ def _initialize_cloud_sql_mysql_db():
 
 def _initialize_firebase_firestore():
     try:
-        cred = credentials.Certificate("config/firebase_service_account_key.json")
+        cred = credentials.Certificate(
+            json.loads(st.secrets["FIREBASE_SERVICE_ACCOUNT_KEY"])
+        )
         firebase_admin.initialize_app(cred)
 
     except BaseException:
@@ -2074,3 +2094,8 @@ def get_customer_address_tool(
             "status": "error",
             "message": f"Failed to retrieve customer' email id: {str(error)}",
         }
+
+
+
+if __name__ == "__main__":
+    print(get_categories_tool())

@@ -1,20 +1,43 @@
+# Copyright 2025 Ashwin Raj
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
+import json
 import warnings
 
-from google.cloud import storage
+import streamlit as st
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
+from google.cloud import storage
+from google.oauth2.service_account import Credentials
+
+load_dotenv()
 warnings.filterwarnings("ignore")
 
 
 class CustomerRecordsBucket:
     def __init__(self):
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = (
-            "config/cloud_storage_service_account_key.json"
+        credentials = Credentials.from_service_account_info(
+            json.loads(st.secrets["CLOUD_STORAGE_SERVICE_ACCOUNT_KEY"])
         )
-        self.storage_client = storage.Client()
 
-    def upload_purchase_invoice(self, customer_id, serial_number, sub_category, file):
+        self.storage_client = storage.Client(credentials=credentials)
+
+    def upload_purchase_invoice(
+        self, customer_id, serial_number, sub_category, file,
+    ):
         bucket = self.storage_client.bucket("customer_records_bucket")
 
         blob = bucket.blob(
@@ -46,7 +69,7 @@ class CustomerRecordsBucket:
         return True
 
     def download_purchase_invoice(
-        self, customer_id, serial_number, sub_category, downloaded_file_path
+        self, customer_id, serial_number, sub_category, downloaded_file_path,
     ):
         bucket = self.storage_client.bucket("customer_records_bucket")
 
@@ -74,8 +97,8 @@ class CustomerRecordsBucket:
                                                     ' ',
                                             '_').lower()}_purchase_invoice.pdf"
         )
-        blob.download_to_filename(downloaded_file_path)
 
+        blob.download_to_filename(downloaded_file_path)
         return downloaded_file_path
 
     def fetch_product_invoice_url(
@@ -114,7 +137,7 @@ class CustomerRecordsBucket:
         return image_url
 
     def upload_warranty_certificate(
-        self, customer_id, serial_number, sub_category, file
+        self, customer_id, serial_number, sub_category, file,
     ):
         bucket = self.storage_client.bucket("customer_records_bucket")
 
@@ -140,14 +163,15 @@ class CustomerRecordsBucket:
                                                 '-',
                                                 '_').replace(
                                                     ' ',
-                                            '_').lower()}_warranty_certificate.pdf"
+                                            '_').lower()
+                                            }_warranty_certificate.pdf"
         )
         blob.upload_from_file(file)
 
         return True
 
     def download_warranty_certificate(
-        self, customer_id, serial_number, sub_category, downloaded_file_path
+        self, customer_id, serial_number, sub_category, downloaded_file_path,
     ):
         bucket = self.storage_client.bucket("customer_records_bucket")
 
@@ -173,7 +197,8 @@ class CustomerRecordsBucket:
                                                 '-',
                                                 '_').replace(
                                                     ' ',
-                                            '_').lower()}_warranty_certificate.pdf"
+                                            '_').lower()
+                                            }_warranty_certificate.pdf"
         )
         blob.download_to_filename(downloaded_file_path)
 
@@ -210,17 +235,19 @@ class CustomerRecordsBucket:
                                                 '-',
                                                 '_').replace(
                                                     ' ',
-                                            '_').lower()}_warranty_certificate.pdf"
+                                            '_').lower()
+                                            }_warranty_certificate.pdf"
         ).generate_signed_url(expire_in)
         return image_url
 
 
 class ServiceManualBucket:
     def __init__(self):
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = (
-            "config/cloud_storage_service_account_key.json"
+        credentials = Credentials.from_service_account_info(
+            json.loads(st.secrets["CLOUD_STORAGE_SERVICE_ACCOUNT_KEY"])
         )
-        self.storage_client = storage.Client()
+
+        self.storage_client = storage.Client(credentials=credentials)
 
     def upload_service_manual(self, local_file_path, cloud_storage_path):
         bucket = self.storage_client.bucket("service_manual_bucket")
@@ -242,6 +269,8 @@ class ServiceManualBucket:
         self, file_name, expire_in=datetime.today() + timedelta(3)
     ):
         bucket = self.storage_client.bucket("service_manual_bucket")
-        service_manual_url = bucket.blob(file_name).generate_signed_url(expire_in)
+
+        service_manual_url = bucket.blob(
+            file_name).generate_signed_url(expire_in)
 
         return service_manual_url

@@ -1,3 +1,20 @@
+# Copyright 2025 Ashwin Raj
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import os
+import json
+
 import folium
 import polyline
 import googlemaps
@@ -13,9 +30,10 @@ class LocationServices:
         )
 
     def _get_route_data(self, origin, destination):
-        url = f"https://maps.googleapis.com/maps/api/directions/json?origin={origin}&destination={destination}&key={
-            str(
-                st.secrets['GOOGLE_MAPS_DISTANCE_MATRIX_API_KEY'])}"
+        url = f"https://maps.googleapis.com/maps/api/directions/json?origin={
+            origin}&destination={
+                destination}&key={
+                    str(st.secrets['GOOGLE_MAPS_DISTANCE_MATRIX_API_KEY'])}"
 
         response = requests.get(url)
         return response.json()
@@ -25,24 +43,28 @@ class LocationServices:
         route_coordinates = []
 
         if route_data["status"] == "OK":
-            map_polyline = route_data["routes"][0]["overview_polyline"]["points"]
+            map_polyline = route_data["routes"][0][
+                "overview_polyline"]["points"]
+
             route_coordinates = polyline.decode(map_polyline)
 
         folium_map = folium.Map(
             location=route_coordinates[int(len(route_coordinates) / 2)],
-            tiles=f"https://mt1.google.com/vt/lyrs=m&x={{x}}&y={{y}}&z={{z}}&key={
-                str(
-                    st.secrets['GOOGLE_MAPS_DISTANCE_MATRIX_API_KEY'])}",
+            tiles=f"https://mt1.google.com/vt/lyrs=m&x={
+                {x}}&y={
+                    {y}}&z={
+                        {z}}&key={
+                            str(st.secrets[
+                                'GOOGLE_MAPS_DISTANCE_MATRIX_API_KEY'])}",
             attr='<a href="https://www.google.com/maps/">Google</a>',
             zoom_start=13,
         )
 
-        folium.PolyLine(route_coordinates, color="#4285F4", weight=5, opacity=1).add_to(
-            folium_map
-        )
+        folium.PolyLine(
+            route_coordinates, color="#4285F4", weight=5, opacity=1,
+        ).add_to(folium_map)
 
         folium_map.fit_bounds([route_coordinates[0], route_coordinates[-1]])
-
         return folium_map
 
     def get_city_and_state_from_zipcode(self, zipcode):
@@ -74,7 +96,8 @@ class LocationServices:
 
     def validate_address(self, address):
         result = self.gmaps.addressvalidation(address)
-        # GRANULARITY_UNSPECIFIED, SUB_PREMISE, PREMISE, PREMISE_PROXIMITY, BLOCK, ROUTE
+        # GRANULARITY_UNSPECIFIED, SUB_PREMISE, PREMISE, PREMISE_PROXIMITY, 
+        # BLOCK, ROUTE
 
         if "result" in result and "verdict" in result["result"]:
             if result["result"]["verdict"]["validationGranularity"] != "OTHER":
@@ -112,14 +135,17 @@ class LocationServices:
 
         return list(set(nearby_districts))
 
-    def get_batch_travel_distance_and_time_for_engineers(self, origins, destination):
+    def get_batch_travel_distance_and_time_for_engineers(
+        self, origins, destination
+    ):
         result = self.gmaps.distance_matrix(origins, [destination])
 
         distances = []
 
         for element in result["rows"]:
             if element["elements"][0]["status"] == "OK":
-                distances.append(element["elements"][0]["distance"]["value"] / 1000)
+                distances.append(
+                    element["elements"][0]["distance"]["value"] / 1000)
             else:
                 distances.append(float("inf"))
 

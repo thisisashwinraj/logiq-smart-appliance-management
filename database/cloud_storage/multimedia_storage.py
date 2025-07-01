@@ -1,18 +1,39 @@
+# Copyright 2025 Ashwin Raj
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
+import json
 import warnings
 
-from google.cloud import storage
+import streamlit as st
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
+from google.cloud import storage
+from google.oauth2.service_account import Credentials
+
+load_dotenv()
 warnings.filterwarnings("ignore")
 
 
 class AppliancesBucket:
     def __init__(self):
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = (
-            "config/cloud_storage_service_account_key.json"
+        credentials = Credentials.from_service_account_info(
+            json.loads(st.secrets["CLOUD_STORAGE_SERVICE_ACCOUNT_KEY"])
         )
-        self.storage_client = storage.Client()
+
+        self.storage_client = storage.Client(credentials=credentials)
 
     def upload_appliance_image(self, brand, sub_category, local_image_path):
         bucket = self.storage_client.bucket("appliance_catalogue_bucket")
@@ -34,7 +55,9 @@ class AppliancesBucket:
 
         return True
 
-    def download_appliance_image(self, brand, sub_category, downloaded_file_path):
+    def download_appliance_image(
+        self, brand, sub_category, downloaded_file_path,
+    ):
         bucket = self.storage_client.bucket("appliance_catalogue_bucket")
 
         blob = bucket.blob(
@@ -77,10 +100,11 @@ class AppliancesBucket:
 
 class InventoryItems:
     def __init__(self):
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = (
-            "config/cloud_storage_service_account_key.json"
+        credentials = Credentials.from_service_account_info(
+            json.loads(st.secrets["CLOUD_STORAGE_SERVICE_ACCOUNT_KEY"])
         )
-        self.storage_client = storage.Client()
+
+        self.storage_client = storage.Client(credentials=credentials)
 
     def upload_item_image(self, local_file_path, cloud_storage_path):
         bucket = self.storage_client.bucket("inventory_items_bucket")
@@ -109,10 +133,11 @@ class InventoryItems:
 
 class ProfilePicturesBucket:
     def __init__(self):
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = (
-            "config/cloud_storage_service_account_key.json"
+        credentials = Credentials.from_service_account_info(
+            json.loads(st.secrets["CLOUD_STORAGE_SERVICE_ACCOUNT_KEY"])
         )
-        self.storage_client = storage.Client()
+
+        self.storage_client = storage.Client(credentials=credentials)
 
     def upload_profile_picture(self, user_type, user_id, file):
         try:
@@ -136,7 +161,10 @@ class ProfilePicturesBucket:
             return False
 
     def fetch_profile_picture_url(
-        self, user_type, user_id, expire_in=datetime.today() + timedelta(minutes=5)
+        self, 
+        user_type, 
+        user_id, 
+        expire_in=datetime.today() + timedelta(minutes=5),
     ):
         bucket = self.storage_client.bucket("profile_pictures_bucket")
 
@@ -159,12 +187,15 @@ class ProfilePicturesBucket:
 
 class OnsiteServiceRequestsBucket:
     def __init__(self):
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = (
-            "config/cloud_storage_service_account_key.json"
+        credentials = Credentials.from_service_account_info(
+            json.loads(st.secrets["CLOUD_STORAGE_SERVICE_ACCOUNT_KEY"])
         )
-        self.storage_client = storage.Client()
 
-    def upload_customer_attachment(self, request_id, image_file, image_filename):
+        self.storage_client = storage.Client(credentials=credentials)
+
+    def upload_customer_attachment(
+        self, request_id, image_file, image_filename,
+    ):
         bucket = self.storage_client.bucket("onsite_service_requests_bucket")
 
         blob = bucket.blob(

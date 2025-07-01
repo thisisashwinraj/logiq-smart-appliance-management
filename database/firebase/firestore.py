@@ -1,22 +1,45 @@
+# Copyright 2025 Ashwin Raj
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import os
+import json
 import bcrypt
 import random
 import warnings
+import streamlit as st
+
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
 import firebase_admin
 from firebase_admin import credentials, firestore
 
+load_dotenv()
 warnings.filterwarnings("ignore")
 
 
 class OnsiteServiceRequestCollection:
     def __init__(self):
         try:
-            cred = credentials.Certificate("config/firebase_service_account_key.json")
-            firebase_admin.initialize_app(cred)
+            creds = credentials.Certificate(
+                json.loads(st.secrets["FIREBASE_SERVICE_ACCOUNT_KEY"])
+            )
+
+            firebase_admin.initialize_app(creds)
+
         except BaseException:
             pass
-
         self.db = firestore.client()
 
     def _generate_request_id(self):
@@ -319,7 +342,10 @@ class OnsiteServiceRequestCollection:
                 )
 
             else:
-                doc.reference.set({"ticket_activity": [new_activity]}, merge=True)
+                doc.reference.set(
+                    {"ticket_activity": [new_activity]},
+                    merge=True,
+                )
 
             return True
 
@@ -348,7 +374,10 @@ class OnsiteServiceRequestCollection:
     def generate_engineer_verification_otp(self, customer_id, request_id):
         otp = "".join([str(random.randint(0, 9)) for _ in range(6)])
 
-        otp_hash = bcrypt.hashpw(otp.encode("utf-8"), bcrypt.gensalt(rounds=12))
+        otp_hash = bcrypt.hashpw(
+            otp.encode("utf-8"),
+            bcrypt.gensalt(rounds=12),
+        )
 
         doc = (
             self.db.collection("service_requests")
@@ -477,7 +506,9 @@ class OnsiteServiceRequestCollection:
     def generate_resolution_verification_otp(self, customer_id, request_id):
         otp = "".join([str(random.randint(0, 9)) for _ in range(6)])
 
-        otp_hash = bcrypt.hashpw(otp.encode("utf-8"), bcrypt.gensalt(rounds=12))
+        otp_hash = bcrypt.hashpw(
+            otp.encode("utf-8"), bcrypt.gensalt(rounds=12)
+        )
 
         doc = (
             self.db.collection("service_requests")
@@ -496,7 +527,12 @@ class OnsiteServiceRequestCollection:
         return None
 
     def resolve_service_request(
-        self, customer_id, request_id, action_performed, additional_notes, input_otp
+        self,
+        customer_id,
+        request_id,
+        action_performed,
+        additional_notes,
+        input_otp,
     ):
         doc = (
             self.db.collection("service_requests")
@@ -549,27 +585,36 @@ class OnsiteServiceRequestCollection:
 class ApplianceSpecificationsCollection:
     def __init__(self):
         try:
-            cred = credentials.Certificate("config/firebase_service_account_key.json")
-            firebase_admin.initialize_app(cred)
+            creds = credentials.Certificate(
+                json.loads(st.secrets["FIREBASE_SERVICE_ACCOUNT_KEY"])
+            )
+
+            firebase_admin.initialize_app(creds)
+
         except BaseException:
             pass
-
         self.db = firestore.client()
 
-    def add_appliance_specificatons(self, model_number, appliance_specifications):
+    def add_appliance_specificatons(
+        self, 
+        model_number, 
+        appliance_specifications,
+    ):
         try:
-            self.db.collection("appliance_specifications").document(model_number.replace('/', '_')).set(appliance_specifications)
+            self.db.collection("appliance_specifications").document(
+                model_number.replace("/", "_")
+            ).set(appliance_specifications)
             return True
 
         except Exception as error:
             print(error)
             return False
-        
+
     def fetch_appliance_specifications(self, model_number):
         try:
             doc = (
                 self.db.collection("appliance_specifications")
-                .document(model_number.replace('/', '_'))
+                .document(model_number.replace("/", "_"))
                 .get()
             )
 
@@ -577,9 +622,3 @@ class ApplianceSpecificationsCollection:
 
         except Exception as error:
             return {}
-
-
-
-if __name__ == "__main__":
-    ap = ApplianceSpecificationsCollection()
-    print(ap.fetch_appliance_specifications("PDET920AY"))
