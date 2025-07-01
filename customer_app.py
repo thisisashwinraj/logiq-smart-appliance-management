@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import json
 import time
 import uuid
 import bleach
@@ -2139,6 +2141,10 @@ if st.session_state.themes["refreshed"] == False:
 ################################# [APP LOGIC] #################################
 
 if __name__ == "__main__":
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = (
+        "config/cloud_storage_service_account_key.json"
+    )
+
     if st.session_state.themes['current_theme'] == 'light':
         st.logo("assets/logos/app_logo_light.png")
     else:
