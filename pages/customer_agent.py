@@ -232,14 +232,10 @@ if __name__ == "__main__":
             )
 
         greeting = get_greetings(
-            is_ist=True, 
-            session_id=st.session_state.current_session,
-            )
+            is_ist=True, session_id=st.session_state.current_session)
         
         customer_name = get_customer_details(
-            full_name=True, 
-            session_id=st.session_state.current_session
-        )
+            full_name=True, session_id=st.session_state.current_session)
 
         with st.sidebar:
             with st.container(height=493, border=False):
