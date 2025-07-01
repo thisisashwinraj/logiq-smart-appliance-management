@@ -31,6 +31,8 @@ from backend.utils.geo_operations import LocationServices
 from backend.channels.email_client import TransactionalEmails
 from backend.channels.sms_client import NotificationSMS
 
+from customer_agent.runner import initialize_adk, run_adk_sync
+
 from database.cloud_sql.migrations import MigrateCustomers
 from database.cloud_sql.models import ModelCustomers, ModelCustomerAppliances
 from database.cloud_sql.queries import (
@@ -2246,6 +2248,19 @@ if __name__ == "__main__":
     ########################## [USER AUTHORIZATION] ###########################
 
     if st.session_state.customer_id:
+        try:
+            adk_runner, current_session_id = initialize_adk(
+                user_id=st.session_state.customer_id
+            )
+
+        except Exception as e:
+            st.error(f"""
+                **Fatal Error:** Could not initialize the ADK Runner or Session 
+                Service: {e}", icon=":material/cancel:"""
+            )
+
+            st.stop()
+
         greeting = get_greetings(
             is_ist=True,
             session_id=st.session_state.current_session,
