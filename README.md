@@ -109,9 +109,5 @@ For implementing **Retrieval-Augmented Generation (RAG)** workflow, publicly ava
 To view examples of multiturn conversations for agents in the customer support agent team check [assets/screenshots](https://github.com/thisisashwinraj/logiq-smart-appliance-management/tree/main/assets/screenshots/chat)
 
 
-## Authors
-- [Ashwin Raj (@thisisashwinraj)](https://www.github.com/thisisashwinraj)
-
-
 ## Support and Feedback
 Contributions are always welcome from the community. If you have any **queries** or would like to **share any feedback**, please drop a line at thisisashwinraj@gmail.com. You can also connect with me over [LinkedIn](https://www.linkedin.com/in/thisisashwinraj/) or [X (previously Twitter)](https://x.com/thisisashwinraj)
