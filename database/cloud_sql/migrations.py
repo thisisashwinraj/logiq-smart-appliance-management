@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import json
+import logging
 import warnings
 import sqlalchemy
 
@@ -24,6 +24,7 @@ from google.cloud.sql.connector import Connector
 from google.oauth2.service_account import Credentials
 
 load_dotenv()
+logger = logging.getLogger(__name__).setLevel(logging.ERROR)
 warnings.filterwarnings("ignore")
 
 
@@ -50,18 +51,6 @@ class MigrateAppliances:
             "mysql+pymysql://",
             creator=self._get_connection,
         )
-
-        """
-        UPDATE appliances
-        SET
-            brand = 'New_Name',
-            appliance_name = REPLACE(appliance_name, 'Old_Name', 'New_Name'),
-            appliance_image_url = REPLACE(appliance_image_url, 'Old_Name', 'New_Name')
-        WHERE
-            brand = 'Old_Name';
-
-        SELECT * FROM appliances WHERE brand = 'New_Name';
-        """
 
         with pool.connect() as db_conn:
             update_query = "UPDATE appliances SET "
@@ -330,7 +319,11 @@ class MigrateCustomerAppliances:
         )
         return conn
 
-    def update_customer_appliance_by_serial_number(self, serial_number, **kwargs):
+    def update_customer_appliance_by_serial_number(
+        self, 
+        serial_number, 
+        **kwargs
+    ):
         pool = sqlalchemy.create_engine(
             "mysql+pymysql://",
             creator=self._get_connection,
