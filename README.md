@@ -16,7 +16,9 @@
 - **View Appliances Details:** Access centralized view of all registered appliances with warranty, specs, & support info
 - **View Service Requests Status:** Track ongoing and past service requests, including live status and engineer details
 
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/logiq_home.png)
+![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/logiq_home_1.png)
+![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/logiq_home_2.png)
+![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/logiq_home_3.png)
 
 
 ## Customer Agent Features
