@@ -13,13 +13,11 @@
 # limitations under the License.
 
 import os
-import json
 import time
 import uuid
 import bleach
 import requests
 import warnings
-from PIL import Image
 
 import datetime
 import dateutil
@@ -66,10 +64,14 @@ st.html(
     """
     <style>
         section[data-testid="stSidebar"] {
-            width: 325px !important; # Set the width to your desired value
+            width: 335px !important; # Set the width to your desired value
         }
     </style>
     """
+)
+
+st.html(
+    "<style>[data-testid='stHeaderActionElements'] {display: none;}</style>"
 )
 
 st.markdown(
@@ -224,13 +226,15 @@ if "customer_details" not in st.session_state:
     st.session_state.customer_details = ""
 
 if "distinct_appliance_data" not in st.session_state:
-    query_appliances = Appliances()
-    st.session_state.distinct_appliance_data = (
-        query_appliances.fetch_distinct_appliance_data_with_category()
-    )
+    try:
+        query_appliances = Appliances()
+        st.session_state.distinct_appliance_data = (
+            query_appliances.fetch_distinct_appliance_data_with_category()
+        )
+    except Exception as error:
+        st.session_state.distinct_appliance_data = {}
 
 ############################ [STREAMLIT DIALOGS] ##############################
-
 
 @st.dialog("Manage Account", width="large")
 def dialog_manage_account():
@@ -445,7 +449,10 @@ def dialog_manage_account():
         )
 
         city = bleach.clean(
-            colb.text_input("City", value=st.session_state.customer_details.get("city"))
+            colb.text_input(
+                "City", 
+                value=st.session_state.customer_details.get("city")
+            )
         )
 
         cola, colb, colc, cold = st.columns(4)
@@ -475,7 +482,9 @@ def dialog_manage_account():
                 return district, state, country
 
         if zip_code != st.session_state.customer_details.get("zip_code"):
-            district, state, country = fetch_district_and_state_from_zipcode(zip_code)
+            district, state, country = fetch_district_and_state_from_zipcode(
+                zip_code
+            )
 
         else:
             district = st.session_state.customer_details.get("district")
@@ -613,7 +622,9 @@ def register_new_appliance():
             try:
                 if st.session_state.distinct_appliance_data.get(category):
                     result = list(
-                        st.session_state.distinct_appliance_data.get(category).keys()
+                        st.session_state.distinct_appliance_data.get(
+                            category
+                        ).keys()
                     )
                 else:
                     result = None
@@ -849,7 +860,9 @@ def register_new_appliance():
             )
 
             if st.session_state.ra_seller:
-                st.session_state.ra_seller = bleach.clean(st.session_state.ra_seller)
+                st.session_state.ra_seller = bleach.clean(
+                    st.session_state.ra_seller
+                )
 
     else:
         ra_purchase_invoice_file = st.file_uploader(
@@ -869,7 +882,10 @@ def register_new_appliance():
             type="primary",
             icon=":material/check:",
         ):
-            progress_bar = st.progress(0, text="Verifying the registration form fields")
+            progress_bar = st.progress(
+                0, 
+                text="Verifying the registration form fields"
+            )
 
             if (
                 (st.session_state.ra_category is None)
@@ -1040,8 +1056,8 @@ def register_new_appliance():
 
                     # Display status to users
                     success_status = st.success(
-                        "Congratulations! Your new appliance has been registered.",
-                        icon="🎉",
+                        "Congratulations! Your appliance has been registered.",
+                        icon=":material/check:",
                     )
                     time.sleep(3)
                     success_status.empty()
@@ -1049,8 +1065,8 @@ def register_new_appliance():
 
                 else:
                     failure_status = st.error(
-                        "Oops! We're facing some trouble connecting. Try again later",
-                        icon="🚨",
+                        "We're facing trouble connecting. Try again later.",
+                        icon=":material/error:",
                     )
                     time.sleep(3)
                     failure_status.empty()
@@ -1237,7 +1253,10 @@ def create_new_onsite_service_request():
 
         if st.session_state.cosr_request_description:
             if len(st.session_state.cosr_request_description.split()) < 30:
-                st.warning("Please desribe the issue in atleast 30 words", icon="⚠️")
+                st.warning(
+                    "Please desribe the issue in atleast 30 words", 
+                    icon=":material/warning:"
+                )
 
     elif step_register_service_request == "Address and Attachments":
         cola, colb = st.columns(2)
@@ -1262,7 +1281,9 @@ def create_new_onsite_service_request():
             )
 
             if st.session_state.cosr_email:
-                st.session_state.cosr_email = bleach.clean(st.session_state.cosr_email)
+                st.session_state.cosr_email = bleach.clean(
+                    st.session_state.cosr_email
+                )
 
         st.session_state.cosr_address_street = st.text_input(
             "Street/Apartment No.",
@@ -1341,7 +1362,10 @@ def create_new_onsite_service_request():
 
         if st.button("Raise New Service Request", icon=":material/library_add:"):
             try:
-                progress_bar = st.progress(0, text="Preparing to process your request")
+                progress_bar = st.progress(
+                    0, 
+                    text="Preparing to process your request"
+                )
                 query_customer_appliances = QueryCustomerAppliances()
 
                 progress_bar.progress(20, "Validating customer information")
@@ -1407,7 +1431,10 @@ def create_new_onsite_service_request():
                         progress_bar.progress(80, "Finalizing your service request")
 
                 except Exception as error:
-                    st.warning("Uh-oh! Could not save the attachments.", icon="⚠️")
+                    st.warning(
+                        "Uh-oh! Could not save the attachments.", 
+                        icon=":material/warning:"
+                    )
                     time.sleep(2)
 
                 engineer_assignment_cloud_run_payload = {
@@ -1416,7 +1443,9 @@ def create_new_onsite_service_request():
                 }
 
                 response = requests.post(
-                    str(st.secrets["URL_CLOUD_RUN_ONSITE_ENGINEER_ASSIGNMENT_SERVICE"]),
+                    str(st.secrets[
+                        "URL_CLOUD_RUN_ONSITE_ENGINEER_ASSIGNMENT_SERVICE"
+                    ]),
                     json=engineer_assignment_cloud_run_payload,
                 )
 
@@ -1475,10 +1504,13 @@ def create_new_onsite_service_request():
                 except Exception as error:
                     pass
 
-                progress_bar.progress(100, "Service request created succesfully")
+                progress_bar.progress(
+                    100, 
+                    "Service request created succesfully"
+                )
 
                 st.success(
-                    f"Your service request has been created with id: {service_request_id}",
+                    f"Your request has been created with id: {service_request_id}",
                     icon=":material/check:",
                 )
 
@@ -1487,7 +1519,7 @@ def create_new_onsite_service_request():
 
             except Exception as error:
                 st.error(
-                    "Oops! We're facing some trouble connecting. Try again later",
+                    "We're facing trouble connecting. Try again later.",
                     icon=":material/error:",
                 )
 
@@ -1497,7 +1529,10 @@ def create_new_onsite_service_request():
 
 @st.dialog("Service Request Details", width="large")
 def view_service_request_details(service_request_id, service_request_details):
-    with st.spinner("Fetching details...", show_time=True):
+    with st.spinner(
+        "Fetching details...", 
+        show_time=True
+    ):
         if service_request_details.get("assignment_status").lower() == "confirmed":
             assigned_to_engineer_id = service_request_details.get("assigned_to")
 
@@ -1505,20 +1540,21 @@ def view_service_request_details(service_request_id, service_request_details):
             def get_engineer_name(assigned_to_engineer_id, session_id):
                 query_engineers = QueryEngineers()
 
-                engineer_name_details = query_engineers.fetch_engineer_details_by_id(
+                engineer_name = query_engineers.fetch_engineer_details_by_id(
                     assigned_to_engineer_id,
                     ["first_name", "last_name"],
                 )
 
                 engineer_name = f"""
-                    {engineer_name_details.get('first_name')}
-                    {engineer_name_details.get('last_name')}
+                    {engineer_name.get('first_name')}
+                    {engineer_name.get('last_name')}
                     """
 
                 return engineer_name
 
             engineer_name = get_engineer_name(
-                assigned_to_engineer_id, session_id=st.session_state.current_session
+                assigned_to_engineer_id, 
+                session_id=st.session_state.current_session
             )
 
     cola, colb = st.columns([2, 1])
@@ -1526,7 +1562,10 @@ def view_service_request_details(service_request_id, service_request_details):
     with cola:
         st.markdown(
             f"""
-            <P class="p-vsrd-1">Request Id: {service_request_id}</P><H1 class="h1-vsrd-1">{service_request_details.get('request_title')}</H1>
+            <P class="p-vsrd-1">Request Id: {service_request_id}</P>
+            <H1 class="h1-vsrd-1">
+                {service_request_details.get('request_title')}
+            </H1>
             """,
             unsafe_allow_html=True,
         )
@@ -1535,7 +1574,9 @@ def view_service_request_details(service_request_id, service_request_details):
         st.markdown(
             f"""
             <H2 class="h2-vsrd-2" align='right'>
-                <B>Status: {service_request_details.get('ticket_status').capitalize()}</B>
+                <B>Status: {
+                    service_request_details.get('ticket_status').capitalize()
+                }</B>
             </P>
             """,
             unsafe_allow_html=True,
@@ -1545,7 +1586,9 @@ def view_service_request_details(service_request_id, service_request_details):
 
     with cola:
         st.image(
-            service_request_details.get("appliance_details").get("appliance_image_url"),
+            service_request_details.get("appliance_details").get(
+                "appliance_image_url"
+            ),
             use_container_width=True,
         )
 
@@ -1555,7 +1598,8 @@ def view_service_request_details(service_request_id, service_request_details):
             <H2 class="h2-vsrd-1">
                 {service_request_details.get('appliance_details').get('sub_category')}
             </H2>
-            {service_request_details.get('appliance_details').get('brand')} {service_request_details.get('appliance_details').get('category')} •
+            {service_request_details.get('appliance_details').get('brand')} 
+            {service_request_details.get('appliance_details').get('category')} •
             Model No.: {service_request_details.get('appliance_details').get('model_number')}
             """,
             unsafe_allow_html=True,
@@ -1572,7 +1616,8 @@ def view_service_request_details(service_request_id, service_request_details):
                 f"""
                 📅 Request Created On: {request_created_on.strftime('%B %d, %Y (%A)')}
                 <BR>
-                ✅ Engineer {engineer_name} (Id: {assigned_to_engineer_id}) assigned to your request
+                ✅ Engineer {engineer_name} (Id: {assigned_to_engineer_id}) 
+                assigned to your request
                 """,
                 unsafe_allow_html=True,
             )
@@ -1899,9 +1944,7 @@ def edit_service_request_details(service_request_id, service_request_details):
     if button_delete_service_request:
         st.rerun()
 
-
 ############################# [CACHED FUNCTIONS] ##############################
-
 
 @st.cache_data(show_spinner=False)
 def fetch_and_cache_customer_appliance_details(session_id):
@@ -2079,7 +2122,6 @@ def get_customer_details(full_name, session_id):
 
     return st.session_state.customer_name
 
-
 ################################# [THEMEING] ##################################
 
 if "themes" not in st.session_state:
@@ -2206,16 +2248,6 @@ if __name__ == "__main__":
                     ):
                         dialog_attribution()
 
-                    # button_login = sac.buttons([
-                    #    sac.ButtonsItem(label='Sign in with Google', icon='google', color="#4486F4"),
-                    # ], label='', align='center', use_container_width=True)
-
-                    # if button_login.lower() == 'sign in with google':
-                    #    #st.login('google')
-                    #    print('google')
-
-                    # print(ans)
-
                     st.markdown(" ", unsafe_allow_html=True)
 
         st.stop()
@@ -2293,7 +2325,7 @@ if __name__ == "__main__":
                 open_all=True,
             )
 
-            with st.container(height=323, border=False):
+            with st.container(height=375, border=False):
                 with stylable_container(
                     key="sidebar_container_with_border",
                     css_styles=f"""
@@ -2381,6 +2413,7 @@ if __name__ == "__main__":
                     st.cache_resource.clear()
 
                     st.logout()
+                    st.stop()
 
         if selected_menu_item == "My Dashboard":
             ribbon_col_1, ribbon_col_2, ribbon_col_3, ribbon_col_4 = st.columns(
@@ -2707,7 +2740,7 @@ if __name__ == "__main__":
                                 """,
                                 unsafe_allow_html=True,
                             )
-                            st.write("")
+                            st.markdown("<BR>", unsafe_allow_html=True)
 
                             st.markdown(
                                 f"""
@@ -2739,6 +2772,8 @@ if __name__ == "__main__":
                         )
 
                         st.write(" ")
+                        st.write(" ")
+
                         colx, coly = st.columns([0.9, 3])
 
                         with colx:
@@ -2759,6 +2794,7 @@ if __name__ == "__main__":
                                 icon=":material/page_info:",
                                 use_container_width=True,
                                 key=f"_recent_service_request_details_{i}",
+                                type="primary"
                             ):
                                 view_service_request_details(
                                     service_request_id, service_request_details
@@ -3073,6 +3109,9 @@ if __name__ == "__main__":
                             ):
                                 st.toast("Marketplace is currently unavailable")
 
+            st.write(" ")
+            st.write(" ")
+
         elif selected_menu_item == "My Appliances":
             ribbon_col_1, ribbon_col_2, ribbon_col_3 = st.columns(
                 [4.2, 1.4, 0.4], vertical_alignment="center"
@@ -3086,7 +3125,9 @@ if __name__ == "__main__":
 
             with ribbon_col_2:
                 if st.button(
-                    "Add New Appliance", icon=":material/add:", use_container_width=True
+                    "Add New Appliance", 
+                    icon=":material/add:", 
+                    use_container_width=True
                 ):
                     create_new_onsite_service_request()
 
@@ -3208,7 +3249,9 @@ if __name__ == "__main__":
                                     use_container_width=True,
                                     key=f"_featured_appliance_{idx}",
                                 ):
-                                    view_customer_appliance_details(appliance_details)
+                                    view_customer_appliance_details(
+                                        appliance_details
+                                    )
 
                         st.write(" ")
 
@@ -3248,7 +3291,9 @@ if __name__ == "__main__":
                                     use_container_width=True,
                                     key=f"_featured_appliance_{idx}",
                                 ):
-                                    view_customer_appliance_details(appliance_details)
+                                    view_customer_appliance_details(
+                                        appliance_details
+                                    )
 
                         st.write(" ")
 
@@ -3287,14 +3332,18 @@ if __name__ == "__main__":
                                     use_container_width=True,
                                     key=f"_featured_appliance_{idx}",
                                 ):
-                                    view_customer_appliance_details(appliance_details)
+                                    view_customer_appliance_details(
+                                        appliance_details
+                                    )
 
                         st.write(" ")
+
             st.write(" ")
 
         elif selected_menu_item == "Service History":
             ribbon_col_1, ribbon_col_2, ribbon_col_3 = st.columns(
-                [4.2, 1.4, 0.4], vertical_alignment="center"
+                [4.2, 1.4, 0.4], 
+                vertical_alignment="center"
             )
 
             with ribbon_col_1:
@@ -3437,7 +3486,6 @@ if __name__ == "__main__":
 
         with colp:
             colx, coly = st.columns([1, 2.5])
-            # colx.image("assets/logos/logiq_logo.png", use_container_width=True)
 
         with colq:
             st.markdown(" ", unsafe_allow_html=True)
@@ -3457,7 +3505,6 @@ if __name__ == "__main__":
                     st.markdown(
                         "<H3>Create Your LogIQ Profile...</H3>", unsafe_allow_html=True
                     )
-                    # st.markdown(f"<font color='{st.session_state.themes[st.session_state.themes['current_theme']]['theme.secondaryBackgroundColor']}'>Login to manage your appliances, view service requests and receive proactive maintenance tips, in a single click</font>", unsafe_allow_html=True)
 
                     with st.form(
                         "_register_new_customer_form",
@@ -3699,6 +3746,7 @@ if __name__ == "__main__":
                         ):
                             st.session_state.clear()
                             st.cache_data.clear()
-
                             st.cache_resource.clear()
+
                             st.logout()
+                            st.stop()
