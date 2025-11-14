@@ -12,42 +12,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
+import os
 import json
+import time
+import uuid
 import base64
-import warnings
-import numpy as np
-import pandas as pd
-
 import bleach
+
+import asyncio
 import requests
-from PIL import Image
+import warnings
 from google.genai import types
 
-import dateutil
 import datetime
 from datetime import timedelta
 
+import firebase_admin
+from firebase_admin import credentials
+
 import streamlit as st
 import streamlit_antd_components as sac
-from streamlit_folium import folium_static, st_folium
+from streamlit_folium import folium_static
 from streamlit_extras.stylable_container import stylable_container
-
-import firebase_admin
-from firebase_admin import auth, credentials
 
 from backend.utils.geo_operations import LocationServices
 from backend.channels.email_client import TransactionalEmails
 from backend.channels.sms_client import NotificationSMS
 
-from database.firebase.firestore import OnsiteServiceRequestCollection
-from database.cloud_sql.queries import Appliances, QueryCustomers, QueryEngineers
+from engineer_agent.runner import initialize_adk, run_adk_sync
+
 from database.cloud_sql.migrations import MigrateEngineers
-from database.cloud_storage.document_storage import (
-    CustomerRecordsBucket,
-    ServiceManualBucket,
-)
+from database.cloud_sql.queries import Appliances
+from database.cloud_sql.queries import QueryCustomers, QueryEngineers
+
+from database.cloud_storage.document_storage import CustomerRecordsBucket
+from database.cloud_storage.document_storage import ServiceManualBucket
 from database.cloud_storage.multimedia_storage import ProfilePicturesBucket
+
+from database.firebase.firestore import OnsiteServiceRequestCollection
 
 from inference.chatbot import ServiceEngineerChatbot
 
@@ -61,12 +63,34 @@ st.set_page_config(
 
 warnings.filterwarnings("ignore")
 
+st.html(
+    """
+    <style>
+        section[data-testid="stSidebar"] {
+            width: 323px !important; # Set the width to your desired value
+        }
+    </style>
+    """
+)
+
+st.html("<style>[data-testid='stHeaderActionElements'] {display: none;}</style>")
+
+st.html(
+    """
+    <style>
+    section[data-testid="stSidebar"] > div:first-child {
+        height: 100vh;
+        overflow: hidden;
+    }
+    </style>
+    """
+)
 
 st.markdown(
     """
         <style>
                .block-container {
-                    padding-top: 0.2rem;
+                    padding-top: 0.1rem;
                     padding-bottom: 1.55rem;
                 }
         </style>
@@ -100,6 +124,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+############################## [SESSION STATES] ###############################
+
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4()).replace("-", "")[:12]
 
 if "engineer_id" not in st.session_state:
     st.session_state.engineer_id = None
@@ -109,12 +137,6 @@ if "engineer_details" not in st.session_state:
 
 if "onsite_service_requests" not in st.session_state:
     st.session_state.onsite_service_requests = []
-
-if "cache_model_number" not in st.session_state:
-    st.session_state.cache_model_number = None
-
-if "flag_use_context_cache" not in st.session_state:
-    st.session_state.flag_use_context_cache = None
 
 if "service_guide" not in st.session_state:
     st.session_state.service_guide = None
@@ -132,139 +154,8 @@ if "distinct_appliance_details" not in st.session_state:
         pass
 
 
-def set_cache_model_number(brand, sub_category, model_number):
-    st.session_state.cache_model_number = model_number
-    st.session_state.cache_brand = brand
-    st.session_state.cache_sub_category = sub_category
-
-
-@st.cache_data(ttl="60 minutes", show_spinner=False)
-def build_context_cache(
-    input_brand, input_category, input_sub_category, input_model_number
-):
-    service_manual_uri = (
-        "gs://service_manual_bucket/"
-        + input_category.lower().replace(" ", "_").replace("-", "_").replace("/", "_")
-        + "/"
-        + input_sub_category.lower()
-        .replace(" ", "_")
-        .replace("-", "_")
-        .replace("/", "_")
-        + "_service_guide.pdf"
-    )
-
-    # files_to_upload = [service_manual_uri, service_manual_uri, service_manual_uri]
-    files_to_upload = [service_manual_uri]
-
-    service_guide_title = (
-        input_brand + " " + input_sub_category + " " + input_model_number
-    )
-
-    service_engineer_chatbot = ServiceEngineerChatbot()
-    context_cache = service_engineer_chatbot.construct_cache_model(
-        input_brand,
-        input_sub_category,
-        input_model_number,
-        service_guide_title,
-        files_to_upload,
-    )
-
-    return context_cache
-
-
-@st.dialog("Manage Account", width="large")
+@st.dialog("Manage Account", width="medium")
 def dialog_manage_account():
-    cola, _, colb, colc = st.columns(
-        [1, 0.05, 2.9, 1.1], vertical_alignment="top"
-    )
-
-    with cola:
-        st.image(
-            "assets/avatars/customers/male3.png",
-            use_container_width=True,
-        )
-
-    with colb:
-        st.write(" ")
-        st.markdown(
-            f"""
-            <H2 class="h2-vsrd-3">
-                {st.session_state.engineer_details.get('first_name')} {st.session_state.engineer_details.get('last_name')}
-            </H2>
-            Engineer Id: {st.session_state.engineer_id}
-            &nbsp;• &nbsp;Ratings: {str(float(st.session_state.engineer_details.get('rating')))} ⭐
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.write(" ")
-        st.markdown(
-            f"""
-            Open: {str(st.session_state.ticket_counts.get('assigned')).zfill(2) if st.session_state.ticket_counts.get('assigned') < 10 else str(st.session_state.ticket_counts.get('assigned'))}
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            Resolved: {str(st.session_state.ticket_counts.get('resolved')).zfill(2) if st.session_state.ticket_counts.get('resolved') < 10 else str(st.session_state.ticket_counts.get('resolved'))}
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            Pending Confirmation: {str(st.session_state.ticket_counts.get('pending')).zfill(2) if st.session_state.ticket_counts.get('pending') < 10 else str(st.session_state.ticket_counts.get('pending'))}
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with colc:
-        st.markdown("<BR>", unsafe_allow_html=True)
-        button_engineer_availability = st.button(
-            (
-                "Available"
-                if st.session_state.engineer_details.get("availability") == 1
-                else "Unavailable"
-            ),
-            use_container_width=True,
-            type=(
-                "primary"
-                if st.session_state.engineer_details.get("availability") == 1
-                else "secondary"
-            ),
-            icon=(
-                ":material/person_check:"
-                if st.session_state.engineer_details.get("availability") == 1
-                else ":material/person_alert:"
-            ),
-        )
-
-    if button_engineer_availability:
-        with st.spinner("Updating availability status...", show_time=True):
-            migrate_engineers = MigrateEngineers()
-            response = migrate_engineers.toggle_engineer_availability(
-                st.session_state.engineer_id
-            )
-
-            st.session_state.engineer_details = None
-
-        if response:
-            st.success(
-                "Availability status updated succesfully!", icon=":material/check:"
-            )
-
-            try:
-                query_engineers = QueryEngineers()
-                st.session_state.engineer_details = (
-                    query_engineers.fetch_engineer_details_by_id(
-                        st.session_state.engineer_id
-                    )
-                )
-
-            except Exception as error:
-                pass
-
-        else:
-            alert_warning = st.warning(
-                "Unable to update your availability status. Please try again later.",
-                icon=":material/warning:",
-            )
-            time.sleep(3)
-
-        st.rerun()
-
-    st.write(" ")
     selected_tab = sac.tabs(
         [
             sac.TabsItem(label="Personal Details"),
@@ -310,7 +201,7 @@ def dialog_manage_account():
         if cola.button(
             "Update Profile",
             icon=":material/person_check:",
-            use_container_width=True,
+            width='stretch',
         ):
             migrate_engineers = MigrateEngineers()
             profile_picture_url = None
@@ -403,7 +294,7 @@ def dialog_manage_account():
             "",
             icon=":material/clear_all:",
             help="Discard and Exit",
-            use_container_width=True,
+            width='stretch',
             key="_dicard_updates_button_1",
         ):
             st.rerun()
@@ -412,6 +303,7 @@ def dialog_manage_account():
         specializations_options = list(
             st.session_state.distinct_appliance_details.keys()
         )
+
         specializations = st.multiselect(
             "Specializations",
             specializations_options,
@@ -462,7 +354,7 @@ def dialog_manage_account():
         if cola.button(
             "Update Profile",
             icon=":material/person_check:",
-            use_container_width=True,
+            width='stretch',
         ):
             migrate_engineers = MigrateEngineers()
 
@@ -510,7 +402,7 @@ def dialog_manage_account():
             "",
             icon=":material/clear_all:",
             help="Discard and Exit",
-            use_container_width=True,
+            width='stretch',
             key="_dicard_updates_button_2",
         ):
             st.rerun()
@@ -559,7 +451,7 @@ def dialog_manage_account():
         if cola.button(
             "Update Profile",
             icon=":material/person_check:",
-            use_container_width=True,
+            width='stretch',
         ):
             migrate_engineers = MigrateEngineers()
 
@@ -575,7 +467,10 @@ def dialog_manage_account():
                 )
 
             if response:
-                st.success("Profile updated succesfully!", icon=":material/check:")
+                st.success(
+                    "Profile updated succesfully!", 
+                    icon=":material/check:"
+                )
 
                 try:
                     get_engineer_details.clear()
@@ -611,11 +506,68 @@ def dialog_manage_account():
             "",
             icon=":material/clear_all:",
             help="Discard and Exit",
-            use_container_width=True,
+            width='stretch',
             key="_dicard_updates_button_2",
         ):
             st.rerun()
 
+@st.dialog("Request History", width='medium')
+def dialog_display_past_service_request_details(request_details):
+    with st.container(border=False):
+        with stylable_container(
+            key="_ticket_activity_card",
+            css_styles=f"""
+                {{
+                    background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
+                    border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                    border-radius: 0.6rem;
+                    padding: calc(1em - 1px)
+                }}
+                """,
+        ):
+            st.markdown(
+                f"""
+                <P>
+                    <B>Request Title:</B>
+                    {request_details.get('request_title')}
+                </P>
+                <P align='left'>
+                    <B>Description:</B>
+                    {request_details.get('description')}
+                </P>
+                <P>
+                    <B>Created on:</B>
+                    {datetime.datetime.strptime(request_details.get("created_on"), "%Y-%m-%d %H:%M:%S",).strftime("%B %d, %Y")}
+                </P>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    with st.container(border=False):
+        with stylable_container(
+            key="_ticket_activity_card",
+            css_styles=f"""
+                {{
+                    background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
+                    border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                    border-radius: 0.6rem;
+                    padding: calc(1em - 1px)
+                }}
+                """,
+        ):
+            st.markdown(
+                f"""
+                <H3>Engineer Activity and Resolution</H3>
+                <P align='left'>
+                    {request_details.get('action_performed', '')}
+                </P>
+                <P align='left'>
+                    {request_details.get('additional_notes', '')}
+                </P>
+                """,
+                unsafe_allow_html=True,
+            )
+            
 
 @st.dialog("Password Reset", width="small")
 def reset_password():
@@ -643,7 +595,7 @@ def reset_password():
     if st.button(
         "Send Password Reset Email",
         icon=":material/forward_to_inbox:",
-        use_container_width=True,
+        width='stretch',
     ):
         with st.spinner("Processing request...", show_time=True):
             try:
@@ -695,7 +647,7 @@ def reset_password():
             )
 
 
-@st.dialog("Attribution and Copyright", width="large")
+@st.dialog("Attribution and Copyright", width='medium')
 def dialog_attribution():
     sac.alert(
         label=f"Acknowledgments and Fair Use Notice",
@@ -705,7 +657,7 @@ def dialog_attribution():
     )
 
 
-@st.dialog("Resolve Service Request", width="large")
+@st.dialog("Resolve Service Request", width='medium')
 def dialog_resolve_service_request(service_request_id, service_request_details):
     if service_request_details.get("resolution").get("start_date") == "":
         sac.alert(
@@ -746,7 +698,7 @@ def dialog_resolve_service_request(service_request_id, service_request_details):
         cola, _ = st.columns([1, 2.5])
 
         if cola.button(
-            "Mark as Resolved", icon=":material/done_all:", use_container_width=True
+            "Mark as Resolved", icon=":material/done_all:", width='stretch'
         ):
             onsite_service_request_collection = OnsiteServiceRequestCollection()
 
@@ -851,85 +803,61 @@ def dialog_resolve_service_request(service_request_id, service_request_details):
                 display_warning.empty()
 
 
-@st.dialog("Resolution Details", width="large")
+@st.dialog("Resolution Details", width='medium')
 def dialog_display_resolution_details(service_request_details):
-    cola, colb = st.columns([0.1, 0.15], vertical_alignment="center")
+    with st.container(border=False):
+        with stylable_container(
+            key="_internal_sidebar_container_with_border",
+            css_styles=f"""
+                {{
+                    background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
+                    border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                    border-radius: 0.6rem;
+                    padding: calc(1em - 1px)
+                }}
+                """,
+        ):
+            st.markdown(
+                f"""
+                <H3>
+                {service_request_details.get('request_title')}
+                </H3>
+                """,
+                unsafe_allow_html=True,
+            )
 
-    with colb:
-        request_raised_on = datetime.datetime.strptime(
-            service_request_details.get("created_on"),
-            "%Y-%m-%d %H:%M:%S",
-        ).strftime("%B %d, %Y")
+            st.markdown(
+                f"""
+                :material/stacks: <B>Description</B><BR>
+                {service_request_details.get('description')}
+                """,
+                unsafe_allow_html=True,
+            )
 
-        st.markdown(
-            f"""
-            <P align='right'>
-                <B>Raised on:</B> {request_raised_on}
-            </P>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with cola:
-        st.markdown("<H3>Service Request Description</H3>", unsafe_allow_html=True)
-
-    st.markdown(
-        f"""
-        <P>
-            <B>Request Title:</B>
-            {service_request_details.get('request_title')}
-        </P>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        f"""
-        <P align='left'>
-            <B>Description:</B>
-            {service_request_details.get('description')}
-        </P>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    sac.divider(align="center", color="#181818")
-    cola, colb = st.columns([0.1, 0.15], vertical_alignment="center")
-
-    with cola:
-        st.markdown("<H3>Engineer Activity and Resolution</H3>", unsafe_allow_html=True)
-
-        resolution_start_date = datetime.datetime.strptime(
-            service_request_details.get("resolution").get("start_date"),
-            "%Y-%m-%d %H:%M:%S",
-        ).strftime("%B %d, %Y")
-
-        resolution_end_date = datetime.datetime.strptime(
-            service_request_details.get("resolution").get("end_date"),
-            "%Y-%m-%d %H:%M:%S",
-        ).strftime("%B %d, %Y")
-
-    with colb:
-        st.markdown(
-            f"""
-            <P align='right'>
-                {resolution_start_date} - {resolution_end_date}
-            </P>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.markdown(
-        f"""
-        <P align='left'>
-            {service_request_details.get('resolution').get('action_performed', '')}
-        </P>
-        <P align='left'>
-            {service_request_details.get('resolution').get('additional_notes', '')}
-        </P>
-        """,
-        unsafe_allow_html=True,
-    )
+        with st.container(border=False):
+            with stylable_container(
+                key="_internal_sidebar_container_with_border",
+                css_styles=f"""
+                    {{
+                        background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
+                        border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                        border-radius: 0.6rem;
+                        padding: calc(1em - 1px)
+                    }}
+                    """,
+            ):
+                st.markdown(
+                    f"""
+                    :material/text_snippet: <B>Resolution Notes</B>
+                    <P align='left'>
+                        {service_request_details.get('resolution').get('action_performed', '')}
+                    </P>
+                    <P align='left'>
+                        {service_request_details.get('resolution').get('additional_notes', '')}
+                    </P>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
 
 @st.dialog("Review Service Request", width="small")
@@ -947,7 +875,7 @@ def dialog_review_service_request(service_request_id, service_request_details):
     if cola.button(
         "Approve Request",
         icon=":material/check:",
-        use_container_width=True,
+        width='stretch',
         type="primary",
     ):
         status_updated = onsite_service_request_collection.update_assignment_status(
@@ -1046,7 +974,7 @@ def dialog_review_service_request(service_request_id, service_request_details):
         time.sleep(3)
         st.rerun()
 
-    if colb.button("Reject Request", icon=":material/close:", use_container_width=True):
+    if colb.button("Reject Request", icon=":material/close:", width='stretch'):
         try:
             status_updated = (
                 onsite_service_request_collection.assign_service_request_to_admin(
@@ -1082,10 +1010,12 @@ def dialog_review_service_request(service_request_id, service_request_details):
         st.rerun()
 
 
-@st.dialog("More Options", width="large")
+@st.dialog("More Options", width='medium')
 def dialog_view_more_ticket_options(service_request_id, service_request_details):
     with st.expander(
-        "Verify and Start Ticket Resolution", icon=":material/help:", expanded=True
+        "Verify and Start Ticket Resolution", 
+        icon=":material/person_check:", 
+        expanded=True
     ):
         resolution_start_date = service_request_details.get("resolution").get(
             "start_date"
@@ -1114,12 +1044,24 @@ def dialog_view_more_ticket_options(service_request_id, service_request_details)
                 )
             )
 
-            if colb.button(
-                "Verify with OTP",
-                icon=":material/policy:",
-                type="primary",
-                use_container_width=True,
-            ):
+            with colb:
+                with stylable_container(
+                    "button_verify_with_otp",
+                    css_styles="""
+                    button {
+                        background-color: #3367D6;
+                        border: #274AB3;
+                        color: #FFFFFF;
+                    }""",
+                ):
+                    button_verify_with_otp = st.button(
+                        "Verify with OTP", 
+                        icon=":material/policy:", 
+                        key="_verify_with_otp_button", 
+                        width='stretch'
+                    )
+
+            if button_verify_with_otp:
                 onsite_service_request_collection = OnsiteServiceRequestCollection()
                 is_validated, response_code = (
                     onsite_service_request_collection.validate_engineer_verification_otp(
@@ -1215,7 +1157,7 @@ def dialog_view_more_ticket_options(service_request_id, service_request_details)
                 time.sleep(3)
                 st.rerun()
 
-    with st.expander("Report Unsafe Working Condition", icon=":material/warning:"):
+    with st.expander("Report Unsafe Working Condition", icon=":material/report:"):
         if service_request_details.get("unsafe_working_condition_reported"):
             sac.alert(
                 label=f"Reported Unsafe Working Conditions",
@@ -1236,7 +1178,22 @@ def dialog_view_more_ticket_options(service_request_id, service_request_details)
             )
             cola, _ = st.columns([1, 3])
 
-            if cola.button("Report to Team", icon=":material/report:"):
+            with cola:
+                with stylable_container(
+                    "button_verify_with_otp",
+                    css_styles="""
+                    button {
+                        background-color: #3367D6;
+                        border: #274AB3;
+                        color: #FFFFFF;
+                    }""",
+                ):
+                    button_report_to_team = st.button(
+                        "Report to Team", 
+                        icon=":material/report:"
+                    )
+
+            if button_report_to_team:
                 onsite_service_request_collection = OnsiteServiceRequestCollection()
 
                 response = (
@@ -1268,298 +1225,161 @@ def dialog_view_more_ticket_options(service_request_id, service_request_details)
                 st.rerun()
 
 
-@st.dialog("Service Request Details", width="large")
+@st.dialog("Service Request Details", width='medium')
 def dialog_view_service_request_details(
     service_request_id, service_request_details, is_approved=True
 ):
-    cola, colb = st.columns([2, 1])
+    with st.container(border=False):
+        with stylable_container(
+            key="sidebar_container_with_border",
+            css_styles=f"""
+                {{
+                    background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
+                    border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                    border-radius: 0.6rem;
+                    padding: calc(1em - 1px)
+                }}
+                """,
+        ):
+            cola, colb = st.columns([1, 4])
 
-    with cola:
-        st.markdown(
-            f"""
-            <P class="p-vsrd-1">
-                Request Id: {service_request_id}
-            </P>
-            <H1 class="h1-vsrd-1">
-                {service_request_details.get('request_title')}
-            </H1>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with colb:
-        st.markdown(
-            f"""
-            <H2 class="h2-vsrd-2" align='right'>
-                <B>Status:
-                    {service_request_details.get('ticket_status').capitalize()}
-                </B>
-            </P>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    cola, _, colb = st.columns([1, 0.05, 4])
-
-    with cola:
-        st.image(
-            service_request_details.get("appliance_details").get("appliance_image_url"),
-            use_container_width=True,
-        )
-
-    with colb:
-        st.markdown(
-            f"""
-            <H2 class="h2-vsrd-1">
-                {service_request_details.get('appliance_details').get('sub_category')}
-            </H2>
-            {service_request_details.get('appliance_details').get('brand')}
-            {service_request_details.get('appliance_details').get('category')}
-            &nbsp;• &nbsp;Model Number:
-            {service_request_details.get('appliance_details').get('model_number')}
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.write(" ")
-
-        try:
-            request_created_on = datetime.datetime.strptime(
-                service_request_details.get("created_on"),
-                "%Y-%m-%d %H:%M:%S",
-            )
-        except Exception as error:
-            pass
-
-        if is_approved:
-            try:
-                engineer_assigned_on = datetime.datetime.strptime(
-                    service_request_details.get("engineer_assigned_on"),
-                    "%Y-%m-%d %H:%M:%S",
+            with cola:
+                st.image(
+                    service_request_details.get("appliance_details").get("appliance_image_url"),
+                    width='stretch',
                 )
-            except Exception as error:
-                pass
 
+            with colb:
+                st.markdown(
+                    f"""
+                    <H2 class="h2-vsrd-1">
+                        {service_request_details.get('request_title')}
+                    </H2>
+                    {service_request_details.get('appliance_details').get('brand')}
+                    {service_request_details.get('appliance_details').get('sub_category')}
+                    &nbsp;• &nbsp;Model Number:
+                    {service_request_details.get('appliance_details').get('model_number')}
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+                st.write(" ")
+
+                try:
+                    request_created_on = datetime.datetime.strptime(
+                        service_request_details.get("created_on"),
+                        "%Y-%m-%d %H:%M:%S",
+                    )
+                except Exception as error:
+                    pass
+
+                if is_approved:
+                    try:
+                        engineer_assigned_on = datetime.datetime.strptime(
+                            service_request_details.get("engineer_assigned_on"),
+                            "%Y-%m-%d %H:%M:%S",
+                        )
+                    except Exception as error:
+                        pass
+
+                    st.markdown(
+                        f"""
+                        :material/view_cozy: Request {service_request_id} created on {request_created_on.strftime('%B %d, %Y')}
+                        <BR>
+                        :material/event: This ticket was assigned to you on {engineer_assigned_on.strftime('%A, %B %d, %Y')}
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                else:
+                    st.markdown(
+                        f"""
+                        :material/view_cozy: Request {service_request_id} created on {request_created_on.strftime('%B %d, %Y')}
+                        <BR>
+                        :material/event: Ticket assigned by system. Approve to add this to your work queue.
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+    with st.container(border=False):
+        with stylable_container(
+            key="sidebar_container_with_border",
+            css_styles=f"""
+                {{
+                    background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
+                    border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                    border-radius: 0.6rem;
+                    padding: calc(1em - 1px)
+                }}
+                """,
+        ):
             st.markdown(
                 f"""
-                📆 Request created on {request_created_on.strftime('%B %d, %Y (%A)')}
-                <BR>
-                🛠️ This ticket was assigned to you on {engineer_assigned_on.strftime('%B %d, %Y (%A)')}
-                """,
-                unsafe_allow_html=True,
-            )
-
-        else:
-            st.markdown(
-                f"""
-                📆 Request created on {request_created_on.strftime('%B %d, %Y (%A)')}
-                <BR>
-                📥 Ticket assigned by system. Approve to add this to your work queue.
-                """,
-                unsafe_allow_html=True,
-            )
-
-    st.write(" ")
-    selected_tab = sac.tabs(
-        [
-            sac.TabsItem(label="Request Details"),
-            sac.TabsItem(label="Appliance Details"),
-            sac.TabsItem(label="Ticket Activity"),
-        ],
-        variant="outline",
-    )
-
-    if selected_tab == "Request Details":
-        colx, coly = st.columns([3, 1.5])
-
-        with colx:
-            st.markdown(
-                f"🆔 <B>Request Type:</B> {
-                    service_request_details.get('request_type')}",
-                unsafe_allow_html=True,
-            )
-
-        with coly:
-            st.markdown(
-                f"<P align='right'>#️⃣ <B>Serial No.:</B> {
-                    service_request_details.get('appliance_details').get('serial_number')}</P>",
-                unsafe_allow_html=True,
-            )
-
-        st.markdown(
-            f"""
-            <P align='left'>
-                🈺 <B>Request Description:</B>
+                :material/clarify: <B>Request Description:</B>
                 <BR>
                 {service_request_details.get('description')}
-            </P>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    elif selected_tab == "Appliance Details":
-        st.markdown(
-            f"🈳 <B>Appliance Name:</B> {
-                service_request_details.get('appliance_details').get('brand')} {
-                service_request_details.get('appliance_details').get('sub_category')}",
-            unsafe_allow_html=True,
-        )
-
-        cola, colb, colc = st.columns([1.1, 1.1, 1])
-
-        with cola:
-            st.markdown(
-                f"""
-                🔢 <B>Serial Number:</B>
-                {service_request_details.get('appliance_details').get('serial_number')}
                 """,
                 unsafe_allow_html=True,
             )
 
-        with colb:
-            st.markdown(
-                f"""
-                🏷️ <B>Model Number:</B>
-                {service_request_details.get('appliance_details').get('model_number')}
-                """,
-                unsafe_allow_html=True,
-            )
 
-        with colc:
-            st.markdown(
-                f"""
-                📅 <B>Purchased On:</B>
-                {service_request_details.get('appliance_details').get('purchase_date')}
-                """,
-                unsafe_allow_html=True,
-            )
-
-        st.markdown(
-            f"""
-            ✅ {service_request_details.get('appliance_details').get('warranty_period')}-
-            Month Manufacturer Warranty,
-            Expires on {service_request_details.get('appliance_details').get('warranty_expiration')}
-            (Purchased from {service_request_details.get('appliance_details').get('seller')})
-            """,
-            unsafe_allow_html=True,
-        )
-
-        customer_records_bucket = CustomerRecordsBucket()
-        cola, colb, _ = st.columns([1.4, 0.3, 1.7])
-
-        with cola:
-            try:
-                warranty_certificate_url = (
-                    customer_records_bucket.fetch_warranty_certificate_url(
-                        customer_id=service_request_details.get("customer_id"),
-                        serial_number=service_request_details.get(
-                            "appliance_details"
-                        ).get("serial_number"),
-                        sub_category=service_request_details.get(
-                            "appliance_details"
-                        ).get("sub_category"),
-                    )
-                )
-
-                st.link_button(
-                    "Download Warranty Certificate",
-                    url=warranty_certificate_url,
-                    use_container_width=True,
-                    icon=":material/license:",
-                )
-
-            except Exception as error:
-                pass
-
-        with colb:
-            try:
-                product_invoice_url = customer_records_bucket.fetch_product_invoice_url(
-                    customer_id=service_request_details.get("customer_id"),
-                    serial_number=service_request_details.get("appliance_details").get(
-                        "serial_number"
-                    ),
-                    sub_category=service_request_details.get("appliance_details").get(
-                        "sub_category"
-                    ),
-                )
-
-                st.link_button(
-                    ":material/receipt:",
-                    url=product_invoice_url,
-                    use_container_width=True,
-                )
-
-            except Exception as error:
-                pass
-
-    if selected_tab == "Ticket Activity":
-
-        @st.cache_data(show_spinner=False)
-        def fetch_and_cache_ticket_activity(customer_id, request_id):
-            onsite_service_request_collection = OnsiteServiceRequestCollection()
-            return onsite_service_request_collection.fetch_service_request_activity(
-                customer_id, request_id
-            )
-
-        ticket_activity = fetch_and_cache_ticket_activity(
-            service_request_details.get("customer_id"),
-            service_request_id,
-        )
-
-        for activity in ticket_activity:
-            added_by = activity.get("added_by")
-
-            if added_by.lower() == "admin":
-                added_by = "Admin"
-                color = "pink"
-            elif added_by.lower() == "engineer":
-                added_by = "Engineer"
-                color = "green"
-            elif added_by.lower() == "customer":
-                added_by = "Customer"
-                color = "blue"
-            else:
-                added_by = "System"
-                color = "yellow"
-
-            timestamp = datetime.datetime.strptime(
-                activity.get("timestamp"), "%Y-%m-%d %H:%M:%S"
-            ).strftime("%B %d, %Y (%H:%M Hrs)")
-
-            sac.alert(
-                label=f"{added_by} - {timestamp}",
-                description=activity.get("notes"),
-                variant="quote",
-                color=color,
-                icon=False,
-                key=activity.get("timestamp"),
-            )
-
-
-@st.dialog("Directions to Customer Address", width="large")
+@st.dialog("Route Preview", width='medium')
 def display_directions_to_customer_location(
     origin, destination, contact_number="Not Provided", email_id="Not Provided"
 ):
-    st.markdown(
-        f"""
-        <P>
-            <B>🗺️ Customer Address: </B>
-            <BR>{destination}<BR><BR>
-            <B>📨 E-mail Id: </B>{email_id}
-            &nbsp;&nbsp;&nbsp;&nbsp;
-            <B>☎️ Phone Number: </B>(+91) {contact_number}
-        </P>
-        """,
-        unsafe_allow_html=True,
-    )
+    with st.container(border=False):
+        with stylable_container(
+            key="sidebar_container_with_border",
+            css_styles=f"""
+                {{
+                    background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
+                    border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                    border-radius: 0.6rem;
+                    padding: calc(1em - 1px)
+                }}
+                """,
+        ):
+            st.markdown(
+                f"""
+                :material/location_on: **Customer Address:**\n
+                {destination}\n
+                """,
+            )
+
+            st.markdown(f"""
+                :material/mail: **E-mail Id:** {email_id}
+                &nbsp;&nbsp;&nbsp;&nbsp;
+                :material/phone_in_talk: **Phone Number:**(+91) {contact_number}
+                </P>
+                """,
+                unsafe_allow_html=True,
+            )
 
     with st.spinner("Finding the best route...", show_time=True):
         loc_services = LocationServices()
         map_obj = loc_services.display_route_with_folium(origin, destination)
 
-    st.markdown(f"<H4>Route Preview:</H4>", unsafe_allow_html=True)
-
-    folium_static(map_obj)
+    with st.container(border=False):
+        with stylable_container(
+            key="sidebar_container_with_border",
+            css_styles=f"""
+                {{
+                    background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
+                    border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                    border-radius: 0.6rem;
+                    padding: calc(1em - 1px)
+                }}
+                """,
+        ):
+            try:
+                st.markdown(
+                    f":material/directions: **Route Preview:**", 
+                    unsafe_allow_html=True
+                )
+                folium_static(map_obj)
+            
+            except Exception as error:
+                pass
 
 
 if "themes" not in st.session_state:
@@ -1568,28 +1388,29 @@ if "themes" not in st.session_state:
         "refreshed": True,
         "light": {
             "theme.base": "dark",
-            "theme.backgroundColor": "#111111",
-            "theme.primaryColor": "#64ABD8",
-            "theme.secondaryBackgroundColor": "#181818",
+            "theme.backgroundColor": "#131314",
+            "theme.primaryColor": "#8AB4F8",
+            "theme.secondaryBackgroundColor": "#18191B",
             "theme.textColor": "#EAE9FC",
+            "cardColor": "#f9fafb",
             "containerColor": "#f0f2f6",
             "containerBoundaryColor": "rgba(229, 231, 235, 1)",
-            "alertColor": "orange",
-            "button_face": ":material/dark_mode:",
+            "alertColor": "#3367D6",
+            "button_face": ":material/dark_mode:"
         },
         "dark": {
             "theme.base": "light",
-            "theme.backgroundColor": "#FBFBFE",
-            "theme.primaryColor": "#266b97",
-            "theme.secondaryBackgroundColor": "#f0f2f6",
+            "theme.backgroundColor": "#FFFFFF",
+            "theme.primaryColor": "#3367D6",
+            "theme.secondaryBackgroundColor": "#F1F3F4",
             "theme.textColor": "#040316",
-            "containerColor": "#181818",
+            "cardColor": "#202124",
+            "containerColor": "#18191B",
             "containerBoundaryColor": "rgba(49, 51, 63, 0.2)",
-            "alertColor": "",
-            "button_face": ":material/light_mode:",
+            "alertColor": "#8AB4F8",
+            "button_face": ":material/light_mode:"
         },
     }
-
 
 def change_streamlit_theme():
     previous_theme = st.session_state.themes["current_theme"]
@@ -1617,16 +1438,11 @@ if st.session_state.themes["refreshed"] == False:
     st.rerun()
 
 
-# if st.session_state.themes["current_theme"] == "dark":
-# st.logo("assets/logos/logiq_logo_dark.png", size='large')
-# else: st.logo("assets/logos/logiq_logo_light.png", size='large')
-
-
 if __name__ == "__main__":
+    st.session_state.engineer_id = "ENGR8T90450"  # For testing purposes only
     if st.session_state.engineer_id:
-
         @st.cache_data(show_spinner=False)
-        def get_engineer_details(full_details=False):
+        def get_engineer_details(session_id, full_details=False):
             query_engineers = QueryEngineers()
             engineer_details = query_engineers.fetch_engineer_details_by_id(
                 st.session_state.engineer_id
@@ -1635,7 +1451,29 @@ if __name__ == "__main__":
             st.session_state.engineer_details = engineer_details
             return st.session_state.engineer_details
 
-        get_engineer_details(full_details=False)
+        get_engineer_details(st.session_state.session_id, full_details=False)
+
+        @st.cache_data(show_spinner=False)
+        def fetch_and_cache_profile_picture(session_id, engineer_id):
+            try:
+                profile_pic_bucket = ProfilePicturesBucket()
+
+                profile_picture_url = (
+                    profile_pic_bucket.fetch_profile_picture_url(
+                        user_type="engineers",
+                        user_id=st.session_state.engineer_id,
+                    )
+                )
+
+            except Exception as error:
+                profile_picture_url = "assets/avatars/customers/female8.png"
+
+            return profile_picture_url
+
+        profile_picture_url = fetch_and_cache_profile_picture(
+            st.session_state.session_id, 
+            st.session_state.engineer_id
+        )
 
         with st.sidebar:
             selected_menu_item = sac.menu(
@@ -1656,15 +1494,18 @@ if __name__ == "__main__":
                     sac.MenuItem(type="divider"),
                 ],
                 open_all=True,
+                color=st.session_state.themes[
+                    st.session_state.themes["current_theme"]
+                ]["alertColor"],
             )
 
-            sidebar_container = st.container(height=240, border=False)
+            sidebar_container = st.container(height=333, border=False)
 
         if selected_menu_item == "My Dashboard":
             onsite_service_request_collection = OnsiteServiceRequestCollection()
 
             @st.cache_data(show_spinner=False)
-            def fetch_and_cache_onsite_service_requests(engineer_id):
+            def fetch_and_cache_onsite_service_requests(session_id, engineer_id):
                 st.session_state.onsite_service_requests = onsite_service_request_collection.fetch_onsite_service_request_details_by_engineer_id(
                     engineer_id
                 )
@@ -1694,85 +1535,124 @@ if __name__ == "__main__":
                         resolved_count += 1
                 st.session_state.ticket_counts["resolved"] = resolved_count
 
-            fetch_and_cache_onsite_service_requests(st.session_state.engineer_id)
+            fetch_and_cache_onsite_service_requests(
+                st.session_state.session_id, 
+                st.session_state.engineer_id
+            )
 
             with sidebar_container:
-                st.markdown("<B>Announcements</B>", unsafe_allow_html=True)
-                colx, coly, colz = st.columns(
-                    [0.77, 2.3, 0.7], vertical_alignment="center"
-                )
-
-                with colx:
-                    st.image(
-                        "assets/app_graphics/maintenance_banner.png",
-                        use_container_width=True,
-                    )
-                with coly:
-                    st.markdown(
-                        """
-                        <B>Maintenance Break</B>
-                        <BR>
-                        Scheduled on March 05
-                        """,
-                        unsafe_allow_html=True,
-                    )
-
-                with colz:
-                    if st.button(
-                        "",
-                        icon=":material/open_in_new:",
-                        use_container_width=True,
-                        key="_announcement_1",
+                with st.container(border=False):
+                    with stylable_container(
+                        key="_internal_sidebar_container_with_border",
+                        css_styles=f"""
+                            {{
+                                background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
+                                border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                                border-radius: 0.6rem;
+                                padding: calc(1em - 1px)
+                            }}
+                            """,
                     ):
-                        st.toast("Announcement currently unavailable")
+                        colx, coly, colz = st.columns(
+                            [0.77, 2.3, 0.7], vertical_alignment="center"
+                        )
 
-                colx, coly, colz = st.columns(
-                    [0.77, 2.3, 0.7], vertical_alignment="center"
-                )
+                        with colx:
+                            st.image(
+                                "assets/app_graphics/maintenance_banner.png",
+                                width='stretch',
+                            )
+                        with coly:
+                            st.markdown(
+                                """
+                                <B>Maintenance Break</B>
+                                <BR>
+                                Nov 26, 2025
+                                """,
+                                unsafe_allow_html=True,
+                            )
 
-                with colx:
-                    st.image(
-                        "assets/app_graphics/break_banner.png",
-                        use_container_width=True,
-                    )
-                with coly:
-                    st.markdown(
-                        """
-                        <B>Training Reminder</B>
-                        <BR>
-                        Sessions on Safety Tips
-                        """,
-                        unsafe_allow_html=True,
-                    )
+                        with colz:
+                            if st.button(
+                                "",
+                                icon=":material/open_in_new:",
+                                width='stretch',
+                                key="_announcement_1",
+                            ):
+                                st.toast("Announcement currently unavailable")
 
-                with colz:
-                    if st.button(
-                        "",
-                        icon=":material/open_in_new:",
-                        use_container_width=True,
-                        key="_announcement_2",
+                with st.container(border=False):
+                    with stylable_container(
+                        key="_internal_sidebar_container_with_border",
+                        css_styles=f"""
+                            {{
+                                background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
+                                border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                                border-radius: 0.6rem;
+                                padding: calc(1em - 1px)
+                            }}
+                            """,
                     ):
-                        st.toast("Announcement currently unavailable")
+                        colx, coly, colz = st.columns(
+                            [0.77, 2.3, 0.7], vertical_alignment="center"
+                        )
 
-                sac.divider(align="center")
+                        with colx:
+                            st.image(
+                                "assets/app_graphics/break_banner.png",
+                                width='stretch',
+                            )
+
+                        with coly:
+                            st.markdown(
+                                """
+                                <B>Training Reminder</B>
+                                <BR>
+                                Dec 12, 2025
+                                """,
+                                unsafe_allow_html=True,
+                            )
+
+                        with colz:
+                            if st.button(
+                                "",
+                                icon=":material/open_in_new:",
+                                width='stretch',
+                                key="_announcement_2",
+                            ):
+                                st.toast("Announcement currently unavailable")
 
             with st.sidebar:
                 st.write(" ")
-                st.markdown("<BR><BR>", unsafe_allow_html=True)
+                st.markdown("<BR>", unsafe_allow_html=True)
 
-                if st.button(
+                colp, colq = st.columns([4.5, 1], vertical_alignment="center")
+
+                if colp.button(
                     "Manage Account",
                     icon=":material/manage_accounts:",
-                    use_container_width=True,
+                    width='stretch',
                 ):
                     dialog_manage_account()
+                
+                if colq.button(
+                    "",
+                    icon=":material/logout:",
+                    help="Logout"
+                ):
+                    st.session_state.clear()
+                    st.cache_data.clear()
+                    st.cache_resource.clear()
+
+                    st.logout()
+                    st.stop()
 
             @st.cache_data(show_spinner=False)
-            def get_engineer_name(full_name=True):
+            def get_engineer_name(session_id, full_name=True):
                 query_engineers = QueryEngineers()
-
                 engineer_details = query_engineers.fetch_engineer_details_by_id(
-                    st.session_state.engineer_id, ["first_name", "last_name"]
+                    st.session_state.engineer_id, 
+                    ["first_name", "last_name"]
                 )
 
                 if full_name:
@@ -1784,7 +1664,10 @@ if __name__ == "__main__":
 
                 return engineer_details.get("first_name")
 
-            engineer_name = get_engineer_name(full_name=True)
+            engineer_name = get_engineer_name(
+                st.session_state.session_id, 
+                full_name=True
+            )
 
             morning_start = timedelta(hours=5)
             afternoon_start = timedelta(hours=12)
@@ -1804,18 +1687,21 @@ if __name__ == "__main__":
                 greeting = "Hello"
 
             ribbon_col_1, ribbon_col_2, ribbon_col_3, ribbon_col_4 = st.columns(
-                [4.2, 1, 0.4, 0.4], vertical_alignment="center"
+                [4.5, 0.9, 0.32, 0.32], 
+                vertical_alignment="center"
             )
 
             with ribbon_col_1:
                 st.markdown(
-                    f"<H4>{greeting}, {str(engineer_name)}! 👋</H4>",
+                    f"<H4>{greeting}, {str(engineer_name)}!</H4>",
                     unsafe_allow_html=True,
                 )
 
             with ribbon_col_2:
                 if st.button(
-                    "Spare Parts", icon=":material/store:", use_container_width=True
+                    "Spare Parts", 
+                    icon=":material/manufacturing:", 
+                    width='stretch'
                 ):
                     st.toast("Marketplace is currently unavailable")
 
@@ -1829,7 +1715,7 @@ if __name__ == "__main__":
                 st.button(
                     "",
                     icon=btn_face,
-                    use_container_width=True,
+                    width='stretch',
                     type="secondary",
                     help="Theme",
                     on_click=change_streamlit_theme,
@@ -1838,25 +1724,215 @@ if __name__ == "__main__":
             with ribbon_col_4:
                 if st.button(
                     "",
-                    icon=":material/logout:",
-                    help="Log Out",
-                    use_container_width=True,
+                    icon=":material/refresh:",
+                    help="Refresh",
+                    width='stretch',
                 ):
-                    previous_theme = "dark"
-                    tdict = st.session_state.themes["dark"]
-
-                    for vkey, vval in tdict.items():
-                        if vkey.startswith("theme"):
-                            st._config.set_option(vkey, vval)
-
-                    st.session_state.themes["refreshed"] = False
-                    st.session_state.themes["current_theme"] = "light"
-
                     st.session_state.clear()
                     st.cache_data.clear()
                     st.cache_resource.clear()
 
                     st.rerun()
+
+            st.write(" ")
+            col1, col2, col3 = st.columns([2.4, 1, 1], vertical_alignment="center")
+
+            with col1.container(border=False):
+                with stylable_container(
+                    key=f"_metrics_container_1",
+                    css_styles=f"""
+                        {{
+                            background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
+                            border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};
+                            border-radius: 0.6rem;
+                            padding: calc(1em - 1px)
+                        }}
+                        """,
+                ):
+                    cola, colb = st.columns(
+                        [1.05, 2.9], 
+                        vertical_alignment="top"
+                    )
+
+                    with cola:
+                        st.image(
+                            profile_picture_url,
+                            width='stretch',
+                        )
+
+                    with colb:
+                        st.write(" ")
+
+                        st.markdown(
+                            f"""
+                            <H5 class="h5-vsrd-3">
+                                {st.session_state.engineer_details.get('first_name')} {st.session_state.engineer_details.get('last_name')}
+                            </H5>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+                        st.markdown(
+                            f"""
+                            Engineer Id: {st.session_state.engineer_id} 
+                            &nbsp; • &nbsp; 
+                            Rating: {str(float(st.session_state.engineer_details.get('rating')))}
+                            """
+                        )
+
+                        colp, colq = st.columns([1, 1], vertical_alignment="center")
+
+                        with colp:
+                            with stylable_container(
+                                "button_manage_account",
+                                css_styles="""
+                                button {
+                                    background-color: #3367D6;
+                                    border: #274AB3;
+                                    color: #FFFFFF;
+                                }""",
+                            ):
+                                button_manage_account = st.button(
+                                    "Manage Account", 
+                                    icon=":material/manage_accounts:", 
+                                    key="button2", 
+                                    width='stretch'
+                                )
+
+                        if button_manage_account:
+                            dialog_manage_account()
+
+                        button_engineer_availability = colq.button(
+                            (
+                                "Available"
+                                if st.session_state.engineer_details.get("availability") == 1
+                                else "Unavailable"
+                            ),
+                            width='stretch',
+                            type="secondary",
+                            icon=(
+                                ":material/visibility:"
+                                if st.session_state.engineer_details.get("availability") == 1
+                                else ":material/visibility_off:"
+                            ),
+                        )
+
+                    if button_engineer_availability:
+                        with st.spinner(
+                            "Updating availability status...", 
+                            show_time=True
+                        ):
+                            migrate_engineers = MigrateEngineers()
+                            response = migrate_engineers.toggle_engineer_availability(
+                                st.session_state.engineer_id
+                            )
+
+                            st.session_state.engineer_details = None
+
+                        if response:
+                            st.success(
+                                "Availability status updated succesfully!", 
+                                icon=":material/check:"
+                            )
+
+                            try:
+                                query_engineers = QueryEngineers()
+                                st.session_state.engineer_details = (
+                                    query_engineers.fetch_engineer_details_by_id(
+                                        st.session_state.engineer_id
+                                    )
+                                )
+
+                            except Exception as error:
+                                pass
+
+                        else:
+                            alert_warning = st.warning(
+                                "Unable to update your availability status. Please try again later.",
+                                icon=":material/warning:",
+                            )
+                            time.sleep(3)
+
+                        st.rerun()
+
+            with sidebar_container:
+                if st.session_state.engineer_details.get("availability") != 1:
+                    sac.alert(
+                        label="You're Marked as Unavailable!", 
+                        description='To get new assignments, kindly update your status.', 
+                        color='yellow', 
+                        icon=False
+                    )
+
+            with col2.container(border=False):
+                with stylable_container(
+                    key=f"_metrics_container_2",
+                    css_styles=f"""
+                        {{
+                            background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
+                            border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};
+                            border-radius: 0.6rem;
+                            padding: calc(1em - 1px)
+                        }}
+                        """,
+                ):
+                    col1, _ = st.columns([1.5, 4], vertical_alignment="top")
+
+                    pending_ticket_icon = "assets/app_graphics/pending_tickets_icon.png" if st.session_state.themes["current_theme"] == "dark" else "assets/app_graphics/pending_tickets_icon_light.png"
+                    
+                    col1.image(
+                        pending_ticket_icon, 
+                        width='stretch'
+                    )
+
+                    st.markdown(
+                        "<P class=\"p-metrics-card-text\">Assigned Tickets</P>", 
+                        unsafe_allow_html=True
+                    )
+                    st.markdown(
+                        f"""
+                        <H2 class="h2-metrics-card-title">
+                        {str(st.session_state.ticket_counts.get('assigned')).zfill(2) if st.session_state.ticket_counts.get('assigned') < 10 else str(st.session_state.ticket_counts.get('assigned'))}
+                        </H2>
+                        """, 
+                        unsafe_allow_html=True
+                    )
+
+            with col3.container(border=False):
+                with stylable_container(
+                    key=f"_metrics_container_3",
+                    css_styles=f"""
+                        {{
+                            background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
+                            border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};
+                            border-radius: 0.6rem;
+                            padding: calc(1em - 1px)
+                        }}
+                        """,
+                ):
+                    col1, _ = st.columns([1.5, 4], vertical_alignment="top")
+
+                    resolved_ticket_icon = "assets/app_graphics/resolved_tickets_icon.png" if st.session_state.themes["current_theme"] == "dark" else "assets/app_graphics/resolved_tickets_icon_light.png"
+
+                    col1.image(
+                        resolved_ticket_icon, 
+                        width='stretch'
+                    )
+
+                    st.markdown(
+                        "<P class=\"p-metrics-card-text\">Resolved Tickets</P>", 
+                        unsafe_allow_html=True
+                    )
+                    st.markdown(
+                        f"""
+                        <H2 class="h2-metrics-card-title">
+                        {str(st.session_state.ticket_counts.get('resolved')).zfill(2) if st.session_state.ticket_counts.get('resolved') < 10 else str(st.session_state.ticket_counts.get('resolved'))}
+                        </H2>
+                        """, 
+                        unsafe_allow_html=True
+                    )
+
+            st.write(" ")
 
             with st.container(border=False):
                 tab_request_assignment_status = sac.tabs(
@@ -1870,6 +1946,27 @@ if __name__ == "__main__":
 
                 if tab_request_assignment_status.lower() == "assigned":
                     assigned_count = 0
+
+                    def get_service_manual_url(category, sub_category):
+                        service_manual_bucket = ServiceManualBucket()
+                        service_manual_url = service_manual_bucket.fetch_service_manual_url(
+                            f"{
+                                category.lower().replace(
+                                    ' ',
+                                    '_').replace(
+                                    '-',
+                                    '_').replace(
+                                    '/',
+                                    '_')}/{
+                                sub_category.lower().replace(
+                                    " ",
+                                    "_").replace(
+                                    "-",
+                                    "_").replace(
+                                    "/",
+                                    "_")}_service_guide.pdf"
+                        )
+                        return service_manual_url
 
                     for service_request in st.session_state.onsite_service_requests:
                         if (
@@ -1888,23 +1985,24 @@ if __name__ == "__main__":
                                     }}
                                     """,
                             ):
-                                cola, colb, colc = st.columns([0.85, 2.71, 1.5])
+                                cola, colb, colc = st.columns(
+                                    [0.75, 2.71, 1.5],
+                                    vertical_alignment="center"
+                                )
 
-                                with cola:
-                                    st.image(
-                                        service_request.get("appliance_details").get(
-                                            "appliance_image_url"
-                                        ),
-                                        use_container_width=True,
-                                    )
+                                cola.image(
+                                    service_request.get("appliance_details").get(
+                                        "appliance_image_url"
+                                    ),
+                                    width='stretch',
+                                )
 
                                 with colb:
-                                    colx, coly = st.columns([20, 0.01])
+                                    colx, _ = st.columns([20, 0.01])
 
                                     with colx:
                                         st.markdown(
-                                            f"<H5>{
-                                                service_request.get('request_title')}</H5>",
+                                            f"<H5>{service_request.get('request_title')}</H5>",
                                             unsafe_allow_html=True,
                                         )
 
@@ -1925,6 +2023,7 @@ if __name__ == "__main__":
                                             """,
                                             unsafe_allow_html=True,
                                         )
+                                        st.write("")
 
                                 with colc:
                                     st.markdown("<BR>", unsafe_allow_html=True)
@@ -1943,73 +2042,74 @@ if __name__ == "__main__":
                                     )
 
                                     st.write(" ")
-                                    colx, coly = st.columns([0.9, 3])
+                                    colx, coly, colz = st.columns([0.6, 0.6, 2])
 
-                                    with colx:
-                                        if st.button(
-                                            "",
-                                            icon=":material/location_on:",
-                                            use_container_width=True,
-                                            key=f"_edit_service_reques.t_{
-                                                service_request.get('request_id')}",
-                                        ):
-                                            try:
-                                                st.toast("Finding the best route")
+                                    if colx.button(
+                                        "",
+                                        icon=":material/location_on:",
+                                        width='stretch',
+                                        key=f"_edit_service_request_{service_request.get('request_id')}"
+                                    ):
+                                        query_engineers = QueryEngineers()
 
-                                                query_engineers = QueryEngineers()
+                                        engineer_address_data = query_engineers.fetch_engineer_details_by_id(
+                                            st.session_state.engineer_id,
+                                            [
+                                                "street",
+                                                "city",
+                                                "district",
+                                                "state",
+                                                "zip_code",
+                                            ],
+                                        )
 
-                                                engineer_address_data = query_engineers.fetch_engineer_details_by_id(
-                                                    st.session_state.engineer_id,
-                                                    [
-                                                        "street",
-                                                        "city",
-                                                        "district",
-                                                        "state",
-                                                        "zip_code",
-                                                    ],
-                                                )
+                                        engineer_address = f"""{
+                                            engineer_address_data.get("street")}, {
+                                            engineer_address_data.get("city")}, {
+                                            engineer_address_data.get("district")}, {
+                                            engineer_address_data.get("state")} - {
+                                            engineer_address_data.get("zip_code")}"""
 
-                                                engineer_address = f"""{
-                                                    engineer_address_data.get("street")}, {
-                                                    engineer_address_data.get("city")}, {
-                                                    engineer_address_data.get("district")}, {
-                                                    engineer_address_data.get("state")} - {
-                                                    engineer_address_data.get("zip_code")}"""
-
-                                                customer_address = f"""{
-                                                    service_request.get("address").get("street")}, {
-                                                    service_request.get("address").get("city")}, {
-                                                    service_request.get("address").get("state")} - {
-                                                    service_request.get("address").get("zipcode")}"""
-
-                                                display_directions_to_customer_location(
-                                                    engineer_address,
-                                                    customer_address,
-                                                    service_request.get(
-                                                        "customer_contact"
-                                                    ).get("phone_number"),
-                                                    service_request.get(
-                                                        "customer_contact"
-                                                    ).get("email"),
-                                                )
-
-                                            except Exception as error:
-                                                st.toast(
-                                                    "Location services are currently unavailable"
-                                                )
-
-                                    with coly:
-                                        if st.button(
-                                            "View Details",
-                                            icon=":material/page_info:",
-                                            use_container_width=True,
-                                            key=f"_recent_service_request_deta.ils_{
-                                                service_request.get('request_id')}",
-                                        ):
-                                            dialog_view_service_request_details(
-                                                service_request.get("request_id"),
-                                                service_request,
+                                        customer_address = f"""{
+                                            service_request.get("address").get("street")}, {
+                                            service_request.get("address").get("city")}, {
+                                            service_request.get("address").get("state")} - {
+                                            service_request.get("address").get("zipcode")}"""
+                                    
+                                        try:
+                                            display_directions_to_customer_location(
+                                                engineer_address,
+                                                customer_address,
+                                                service_request.get(
+                                                    "customer_contact"
+                                                ).get("phone_number"),
+                                                service_request.get(
+                                                    "customer_contact"
+                                                ).get("email"),
                                             )
+
+                                        except Exception as error:
+                                            st.toast(
+                                                "Location services are currently unavailable"
+                                            )
+
+                                    coly.link_button(
+                                        "",
+                                        url=get_service_manual_url(service_request.get("appliance_details").get("category"), service_request.get("appliance_details").get("sub_category")),
+                                        icon=":material/quick_reference:",
+                                        width='stretch'
+                                    )
+
+                                    if colz.button(
+                                        "View Details",
+                                        icon=":material/notes:",
+                                        width='stretch',
+                                        key=f"_button_request_details_{service_request.get('request_id')}"
+                                    ):
+                                        dialog_view_service_request_details(
+                                            service_request.get("request_id"),
+                                            service_request,
+                                        )
 
                     if assigned_count == 0:
                         st.markdown("<BR>" * 4, unsafe_allow_html=True)
@@ -2041,14 +2141,14 @@ if __name__ == "__main__":
                                     }}
                                     """,
                             ):
-                                cola, colb, colc = st.columns([0.85, 2.71, 1.5])
+                                cola, colb, colc = st.columns([0.75, 2.71, 1.5])
 
                                 with cola:
                                     st.image(
                                         service_request.get("appliance_details").get(
                                             "appliance_image_url"
                                         ),
-                                        use_container_width=True,
+                                        width='stretch',
                                     )
 
                                 with colb:
@@ -2102,7 +2202,7 @@ if __name__ == "__main__":
                                         if st.button(
                                             "",
                                             icon=":material/check_circle:",
-                                            use_container_width=True,
+                                            width='stretch',
                                             key=f"_edit_service_reques.t_{
                                                 service_request.get('request_id')}",
                                         ):
@@ -2115,7 +2215,7 @@ if __name__ == "__main__":
                                         if st.button(
                                             "View Details",
                                             icon=":material/page_info:",
-                                            use_container_width=True,
+                                            width='stretch',
                                             key=f"_recent_service_request_deta.ils_{
                                                 service_request.get('request_id')}",
                                         ):
@@ -2154,30 +2254,31 @@ if __name__ == "__main__":
                                     }}
                                     """,
                             ):
-                                cola, colb, colc = st.columns([0.85, 2.71, 1.5])
+                                cola, colb, colc = st.columns(
+                                    [0.75, 2.71, 1.5],
+                                    vertical_alignment="center"
+                                )
 
-                                with cola:
-                                    st.image(
-                                        service_request.get("appliance_details").get(
-                                            "appliance_image_url"
-                                        ),
-                                        use_container_width=True,
-                                    )
+                                cola.image(
+                                    service_request.get("appliance_details").get(
+                                        "appliance_image_url"
+                                    ),
+                                    width='stretch',
+                                )
 
                                 with colb:
-                                    colx, coly = st.columns([20, 0.01])
+                                    colx, _ = st.columns([20, 0.01])
 
                                     with colx:
                                         st.markdown(
-                                            f"<H5>{
-                                                service_request.get('request_title')}</H5>",
+                                            f"<H5>{service_request.get('request_title')}</H5>",
                                             unsafe_allow_html=True,
                                         )
 
                                         st.markdown(
                                             f"""
                                             <P class="p-service-request-request-id-serial-number">
-                                                {service_request.get('appliance_details').get('sub_category')} • {service_request.get('request_id')}
+                                                {service_request.get('appliance_details').get('sub_category')} &nbsp;•&nbsp; {service_request.get('request_id')}
                                             </P>
                                             """,
                                             unsafe_allow_html=True,
@@ -2191,6 +2292,7 @@ if __name__ == "__main__":
                                             """,
                                             unsafe_allow_html=True,
                                         )
+                                        st.write("")
 
                                 with colc:
                                     st.markdown("<BR>", unsafe_allow_html=True)
@@ -2210,21 +2312,22 @@ if __name__ == "__main__":
 
                                     st.write(" ")
 
-                                    colx, coly = st.columns([0.9, 3])
+                                    _, colx, coly = st.columns([0.7, 0.9, 3.5])
+
                                     with colx:
                                         st.link_button(
                                             "",
                                             url="",
                                             icon=":material/description:",
                                             help="Invoice",
-                                            use_container_width=True,
+                                            width='stretch',
                                         )
 
                                     with coly:
                                         if st.button(
                                             "Resolution Notes",
                                             icon=":material/notes:",
-                                            use_container_width=True,
+                                            width='stretch',
                                             key=f"_recent_service_request_deta.ils_{
                                                 service_request.get('request_id')}",
                                         ):
@@ -2258,6 +2361,7 @@ if __name__ == "__main__":
                     open_service_requests.keys(),
                     index=None,
                     placeholder="Select Request Id to View",
+                    label_visibility="collapsed"
                 )
 
                 if request_id_to_view:
@@ -2278,7 +2382,7 @@ if __name__ == "__main__":
                     )
 
                     @st.cache_data(show_spinner=False)
-                    def get_service_manual(request_id):
+                    def get_service_manual(session_id, request_id):
                         service_manual_bucket = ServiceManualBucket()
                         service_manual_url = service_manual_bucket.fetch_service_manual_url(
                             f"{
@@ -2299,10 +2403,10 @@ if __name__ == "__main__":
                         )
                         return service_manual_url
 
-                    service_manual_url = get_service_manual(request_id_to_view)
+                    service_manual_url = get_service_manual(st.session_state.session_id, request_id_to_view)
 
                     @st.cache_data(show_spinner=False)
-                    def get_warranty_certificate_url(request_id):
+                    def get_warranty_certificate_url(session_id, request_id):
                         customer_records_bucket = CustomerRecordsBucket()
 
                         try:
@@ -2325,57 +2429,65 @@ if __name__ == "__main__":
                         return warranty_certificate_url
 
                     warranty_certificate_url = get_warranty_certificate_url(
+                        st.session_state.session_id, 
                         request_id_to_view
                     )
 
-                    colx, coly = st.columns([0.77, 3], vertical_alignment="center")
+                    with st.container(border=False):
+                        with stylable_container(
+                            key="_sidebar_container_service_manual_card",
+                            css_styles=f"""
+                                {{
+                                    background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
+                                    border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};
+                                    border-radius: 0.6rem;
+                                    padding: calc(1em - 1px)
+                                }}
+                                """,
+                        ):
+                            with st.container(border=False):
+                                st.markdown(
+                                    "<B>Reference Documents</B>",
+                                    unsafe_allow_html=True
+                                )
+                                cola, colb = st.columns([0.9, 4], vertical_alignment="center")
 
-                    with colx:
-                        st.image(
-                            "assets/app_graphics/troubleshoot_guide_banner.png",
-                            use_container_width=True,
-                        )
+                                with cola:
+                                    st.image(
+                                        "assets/app_graphics/troubleshoot_guide_banner.png",
+                                        width='stretch',
+                                    )
+                                with colb:
+                                    st.link_button(
+                                        "Open Service Manual",
+                                        url=service_manual_url,
+                                        icon=":material/developer_guide:",
+                                        width='stretch',
+                                        type="secondary"
+                                    )
 
-                    with coly:
-                        st.markdown(
-                            f"""
-                            <B>Model: SAV42716</B><BR>
-                            <A href='{service_manual_url}'>
-                            Launch Troubleshooting Guide
-                            </A>""",
-                            unsafe_allow_html=True,
-                        )
+                                cola, colb = st.columns([0.9, 4], vertical_alignment="center")
 
-                    colx, coly = st.columns([0.77, 3], vertical_alignment="center")
-
-                    with colx:
-                        st.image(
-                            "assets/app_graphics/warranty_document_banner.png",
-                            use_container_width=True,
-                        )
-                    with coly:
-                        st.markdown(
-                            f"""
-                            <B>Serial No.: 218294380928</B><BR>
-                            <A href='{warranty_certificate_url}'>
-                            Customers Warranty Document
-                            </A>
-                            """,
-                            unsafe_allow_html=True,
-                        )
+                                with cola:
+                                    st.image(
+                                        "assets/app_graphics/warranty_document_banner.png",
+                                        width='stretch',
+                                    )
+                                with colb:
+                                    st.link_button(
+                                        "Warranty Certificate",
+                                        url=warranty_certificate_url,
+                                        icon=":material/picture_as_pdf:",
+                                        width='stretch',
+                                        type="secondary"
+                                    )
 
                 else:
-                    sac.alert(
-                        label=f"Trouble Viewing Content?",
-                        description="Press **C** to clear cache then **R** to refresh page.",
-                        color="orange",
-                        icon=True,
-                    )
                     st.markdown("<BR><BR>", unsafe_allow_html=True)
 
             with st.sidebar:
                 st.write(" ")
-                st.markdown("<BR><BR>", unsafe_allow_html=True)
+                st.markdown("<BR>", unsafe_allow_html=True)
 
                 cola, colb = st.columns([4.5, 1])
 
@@ -2383,7 +2495,7 @@ if __name__ == "__main__":
                     if st.button(
                         "Manage Account",
                         icon=":material/manage_accounts:",
-                        use_container_width=True,
+                        width='stretch',
                     ):
                         dialog_manage_account()
 
@@ -2392,7 +2504,7 @@ if __name__ == "__main__":
                         "",
                         icon=":material/logout:",
                         help="Log Out",
-                        use_container_width=True,
+                        width='stretch',
                     ):
                         previous_theme = "dark"
                         tdict = st.session_state.themes["dark"]
@@ -2411,525 +2523,528 @@ if __name__ == "__main__":
                         st.rerun()
 
             if request_id_to_view:
-                cola, colb = st.columns([2.75, 2], vertical_alignment="center")
-
-                with cola:
-                    st.markdown(
-                        f"""
-                        <P class="p-ticket-details-ribbon-title">
-                            Request Id: {request_id_to_view}
-                        </P>
-                        <H4 class="h4-ticket-details-ribbon-title">
-                            {open_service_requests.get(request_id_to_view).get('request_title')}
-                        </H1>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-
-                with colb:
-                    colx, coly, colz = st.columns(
-                        [1, 2.75, 2.75], vertical_alignment="center"
-                    )
-
-                    with colx:
-                        if st.button(
-                            "",
-                            icon=":material/format_list_bulleted:",
-                            use_container_width=True,
-                        ):
-                            dialog_view_more_ticket_options(
-                                request_id_to_view,
-                                open_service_requests.get(request_id_to_view),
-                            )
-
-                    with coly:
-                        if st.button(
-                            "Commute",
-                            icon=":material/location_on:",
-                            use_container_width=True,
-                        ):
-                            st.toast("Finding the best route")
-
-                            query_engineers = QueryEngineers()
-
-                            engineer_address_data = (
-                                query_engineers.fetch_engineer_details_by_id(
-                                    st.session_state.engineer_id,
-                                    ["street", "city", "district", "state", "zip_code"],
-                                )
-                            )
-
-                            engineer_address = f"""
-                            {engineer_address_data.get("street")}, {engineer_address_data.get("city")},
-                            {engineer_address_data.get("district")},
-                            {engineer_address_data.get("state")} - {engineer_address_data.get("zip_code")}
-                            """
-
-                            customer_address = f"""
-                            {open_service_requests.get(request_id_to_view).get("address").get("street")},
-                            {open_service_requests.get(request_id_to_view).get("address").get("city")},
-                            {open_service_requests.get(request_id_to_view).get("address").get("state")} -
-                            {open_service_requests.get(request_id_to_view).get("address").get("zipcode")}
-                            """
-
-                            display_directions_to_customer_location(
-                                engineer_address,
-                                customer_address,
-                                contact_number=open_service_requests.get(
-                                    request_id_to_view
-                                )
-                                .get("customer_contact")
-                                .get("phone_number"),
-                                email_id=open_service_requests.get(request_id_to_view)
-                                .get("customer_contact")
-                                .get("email"),
-                            )
-
-                    with colz:
-                        if st.button(
-                            "Resolve",
-                            icon=":material/done_all:",
-                            type="primary",
-                            use_container_width=True,
-                        ):
-                            dialog_resolve_service_request(
-                                request_id_to_view,
-                                open_service_requests.get(request_id_to_view),
-                            )
-
-                cola, _, colb = st.columns([0.9, 0.1, 4])
-
-                with cola:
-                    st.image(
-                        open_service_requests.get(request_id_to_view)
-                        .get("appliance_details")
-                        .get("appliance_image_url"),
-                        use_container_width=True,
-                    )
-
-                with colb:
-                    colx, coly = st.columns([2.5, 1])
-
-                    with colx:
-                        st.markdown(
-                            f"""
-                            <H4 class="h2-ticket-details-appliance-title">
-                                {open_service_requests.get(request_id_to_view).get('appliance_details').get('sub_category')}</H2>{open_service_requests.get(request_id_to_view).get('appliance_details').get('brand')} (Model No.: {open_service_requests.get(request_id_to_view).get('appliance_details').get('model_number')}) • Serial Number: {open_service_requests.get(request_id_to_view).get('appliance_details').get('serial_number')}
-                            </H4>
+                with st.container(border=False):
+                    with stylable_container(
+                        key="sidebar_container_with_border",
+                        css_styles=f"""
+                            {{
+                                background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
+                                border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                                border-radius: 0.6rem;
+                                padding: calc(1em - 1px)
+                            }}
                             """,
-                            unsafe_allow_html=True,
-                        )
-
-                    with coly:
-                        st.markdown(
-                            f"""
-                            <BR>
-                            <H5 class="h5-ticket-details-status" align='right'>
-                                Status: {open_service_requests.get(request_id_to_view).get('ticket_status').capitalize()}
-                            """,
-                            unsafe_allow_html=True,
-                        )
-
-                    request_created_on = datetime.datetime.strptime(
-                        open_service_requests.get(request_id_to_view).get("created_on"),
-                        "%Y-%m-%d %H:%M:%S",
-                    )
-
-                    warranty_expiry_date = datetime.datetime.strptime(
-                        open_service_requests.get(request_id_to_view)
-                        .get("appliance_details")
-                        .get("warranty_expiration"),
-                        "%Y-%m-%d",
-                    )
-
-                    st.markdown(
-                        f"""<BR>
-                        📅 Request Created On: {request_created_on.strftime('%B %d, %Y (%A)')}<BR>
-                        ✅ {open_service_requests.get(request_id_to_view).get('appliance_details').get('warranty_period')}-month
-                        warranty, expires on {warranty_expiry_date.strftime('%B %d, %Y')}
-                        (Purchased from {open_service_requests.get(request_id_to_view).get('appliance_details').get('seller')})
-                        """,
-                        unsafe_allow_html=True,
-                    )
-
-                st.write(" ")
-                selected_tab = sac.tabs(
-                    [
-                        sac.TabsItem(label="Request Details"),
-                        sac.TabsItem(label="Ticket Activity"),
-                        sac.TabsItem(label="Appliance History"),
-                        sac.TabsItem(label="Parts Replaced", disabled=True),
-                    ],
-                    variant="outline",
-                )
-
-                if selected_tab == "Request Details":
-                    cola, _, colb = st.columns([2.2, 0.001, 0.75])
-
-                    with cola:
-                        st.markdown(
-                            f"""
-                            <B>🈺 Address and Contact: </B><BR>
-                            {open_service_requests.get(request_id_to_view).get("address").get("street")},
-                            {open_service_requests.get(request_id_to_view).get("address").get("city")},
-                            {open_service_requests.get(request_id_to_view).get("address").get("state")} -
-                            {open_service_requests.get(request_id_to_view).get("address").get("zipcode")}
-                            (Phone No.: {open_service_requests.get(request_id_to_view).get('customer_contact').get('phone_number')})
-                            """,
-                            unsafe_allow_html=True,
-                        )
-
-                        st.markdown(
-                            f"""
-                            <P align='left'>
-                                ▶️ <B>Request Description:</B>
-                                <BR>
-                                {open_service_requests.get(request_id_to_view).get("description")}
-                            </P>
-                            """,
-                            unsafe_allow_html=True,
-                        )
-
-                    with colb:
-                        st.write(" ")
+                    ):
                         with st.container(border=False):
-                            colx, coly = st.columns([1, 3])
+                            cola, colb = st.columns([0.7, 4])
 
-                            with colx:
+                            with cola:
                                 st.image(
-                                    "assets/placeholders/trident_yellow.png",
-                                    use_container_width=True,
+                                    open_service_requests.get(request_id_to_view)
+                                    .get("appliance_details")
+                                    .get("appliance_image_url"),
+                                    width='stretch',
                                 )
+                            
+                            with colb:
+                                colx, coly = st.columns([2.5, 1])
 
-                            with coly:
-                                st.markdown(
+                                with colx:
+                                    st.markdown(
+                                        f"""
+                                        <P class="p-ticket-details-ribbon-title">
+                                            Request Id: {request_id_to_view}
+                                        </P>
+                                        <H4 class="h4-ticket-details-ribbon-title">
+                                            {open_service_requests.get(request_id_to_view).get('request_title')}
+                                        </H4>
+                                        """,
+                                        unsafe_allow_html=True,
+                                    )
+
+                                with coly:
+                                    st.markdown(
+                                        f"""
+                                        <BR>
+                                        <H5 class="h5-ticket-details-status" align='right'>
+                                            Status: {open_service_requests.get(request_id_to_view).get('ticket_status').capitalize()} 
+                                        """,
+                                        unsafe_allow_html=True,
+                                    )
+
+                                cola, colb = st.columns([1.6, 1], vertical_alignment="center")
+
+                                cola.markdown(
                                     f"""
-                                    <H6 class="h6-profile-snapshot-metric">
-                                        Requested On
-                                    </H6>
-                                    <P class="p-profile-snapshot-metric">
-                                        {request_created_on.strftime('%B %d, %Y')}
-                                    </P>
+                                    {open_service_requests.get(request_id_to_view).get('appliance_details').get('brand')} {open_service_requests.get(request_id_to_view).get('appliance_details').get('sub_category')} • Model No.: {open_service_requests.get(request_id_to_view).get('appliance_details').get('model_number')}
+                                    <BR>
+                                    Serial No.: {open_service_requests.get(request_id_to_view).get('appliance_details').get('serial_number')} • Warranty Valid Until: {datetime.datetime.strptime(open_service_requests.get(request_id_to_view).get('appliance_details').get('warranty_expiration'), "%Y-%m-%d").strftime("%B %d, %Y")}
                                     """,
                                     unsafe_allow_html=True,
                                 )
 
-                            colx, coly = st.columns([1, 3])
+                                with colb:
+                                    colx, coly, colz = st.columns(
+                                        [1.1, 2.75, 2.72], 
+                                        vertical_alignment="center"
+                                    )
 
-                            request_assigned_on = datetime.datetime.strptime(
-                                open_service_requests.get(request_id_to_view).get(
-                                    "engineer_assigned_on"
-                                ),
+                                    with colx:
+                                        if st.button(
+                                            "",
+                                            icon=":material/format_list_bulleted:",
+                                            width='stretch',
+                                            key=f"_more_options_button"
+                                        ):
+                                            dialog_view_more_ticket_options(
+                                                request_id_to_view,
+                                                open_service_requests.get(request_id_to_view),
+                                            )
+
+                                    with coly:
+                                        if st.button(
+                                            "Directions",
+                                            icon=":material/location_on:",
+                                            width='stretch',
+                                            key="_commute_button"
+                                        ):
+                                            query_engineers = QueryEngineers()
+
+                                            engineer_address_data = (
+                                                query_engineers.fetch_engineer_details_by_id(
+                                                    st.session_state.engineer_id,
+                                                    ["street", "city", "district", "state", "zip_code"],
+                                                )
+                                            )
+
+                                            engineer_address = f"""{engineer_address_data.get("street")}, 
+                                            {engineer_address_data.get("city")},
+                                            {engineer_address_data.get("district")},
+                                            {engineer_address_data.get("state")} - 
+                                            {engineer_address_data.get("zip_code")}
+                                            """
+
+                                            customer_address = f"""{open_service_requests.get(request_id_to_view).get("address").get("street")},
+                                            {open_service_requests.get(request_id_to_view).get("address").get("city")},
+                                            {open_service_requests.get(request_id_to_view).get("address").get("state")} -
+                                            {open_service_requests.get(request_id_to_view).get("address").get("zipcode")}
+                                            """
+                                            
+                                            try:
+                                                display_directions_to_customer_location(
+                                                    engineer_address,
+                                                    customer_address,
+                                                    contact_number=open_service_requests.get(
+                                                        request_id_to_view
+                                                    )
+                                                    .get("customer_contact")
+                                                    .get("phone_number"),
+                                                    email_id=open_service_requests.get(request_id_to_view)
+                                                    .get("customer_contact")
+                                                    .get("email"),
+                                                )
+
+                                            except Exception as error:
+                                                pass
+
+                                    with colz:
+                                        with stylable_container(
+                                            "button_resolve_ticket",
+                                            css_styles="""
+                                            button {
+                                                background-color: #3367D6;
+                                                border: #274AB3;
+                                                color: #FFFFFF;
+                                            }""",
+                                        ):
+                                            button_resolve_ticket = st.button(
+                                                "Resolve", 
+                                                icon=":material/task:", 
+                                                key="_resolve_button", 
+                                                width='stretch'
+                                            )
+
+                                        if button_resolve_ticket:
+                                            dialog_resolve_service_request(
+                                                request_id_to_view,
+                                                open_service_requests.get(request_id_to_view),
+                                            )
+
+
+                colp, colq = st.columns([2.15, 1])
+
+                with colp:
+                    with st.container(border=False):
+                        with stylable_container(
+                            key="sidebar_container_with_border",
+                            css_styles=f"""
+                                {{
+                                    background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
+                                    border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                                    border-radius: 0.6rem;
+                                    padding: calc(1em - 1px)
+                                }}
+                                """,
+                        ):
+                            request_created_on = datetime.datetime.strptime(
+                                open_service_requests.get(request_id_to_view).get("created_on"),
                                 "%Y-%m-%d %H:%M:%S",
                             )
-
-                            with colx:
-                                st.image(
-                                    "assets/placeholders/trident_green.png",
-                                    use_container_width=True,
-                                )
-
-                            with coly:
+                                    
+                            with st.container(border=False):
                                 st.markdown(
                                     f"""
-                                    <H6 class="h6-profile-snapshot-metric">
-                                        Assigned On
-                                    </H6>
-                                    <P class="p-profile-snapshot-metric">
-                                        {request_assigned_on.strftime('%B %d, %Y')}
-                                    </P>
+                                    <H5>Description</H5>
+                                    {open_service_requests.get(request_id_to_view).get('description')}
+                                    <BR><BR>
                                     """,
                                     unsafe_allow_html=True,
                                 )
 
-                            colx, coly = st.columns([1, 3])
-
-                            sla_expiry_on = request_assigned_on + timedelta(days=5)
-
-                            with colx:
-                                st.image(
-                                    "assets/placeholders/trident_red.png",
-                                    use_container_width=True,
-                                )
-
-                            with coly:
                                 st.markdown(
-                                    f"""
-                                    <H6 class="h6-profile-snapshot-metric">
-                                        SLA Expiry On
-                                    </H6>
-                                    <P class="p-profile-snapshot-metric">
-                                        {sla_expiry_on.strftime('%B %d, %Y')}
-                                    </P>
+                                    f"""<B>Created on: </B>
+                                    {request_created_on.strftime("%B %d, %Y at %I:%M %p")}
+                                    <BR>
                                     """,
                                     unsafe_allow_html=True,
                                 )
 
-                elif selected_tab == "Ticket Activity":
+                with colq:
+                    with st.container(border=False):
+                        with stylable_container(
+                            key="sidebar_container_with_border",
+                            css_styles=f"""
+                                {{
+                                    background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
+                                    border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                                    border-radius: 0.6rem;
+                                    padding: calc(1em - 1px)
+                                }}
+                                """,
+                        ):
+                            request_created_on = datetime.datetime.strptime(
+                                open_service_requests.get(request_id_to_view).get("created_on"),
+                                "%Y-%m-%d %H:%M:%S",
+                            )
+                            
+                            with st.container(border=False):
+                                st.markdown(
+                                    f"""
+                                    <H5>Contact Information</H5>
+                                    <B>Phone: </B>
+                                    {open_service_requests.get(request_id_to_view).get('customer_contact').get('phone_number')}
+                                    <BR><B>Email: </B>
+                                    {open_service_requests.get(request_id_to_view).get('customer_contact').get('email')}
+                                    <BR><BR>
+                                    """,
+                                    unsafe_allow_html=True,
+                                )
 
-                    @st.cache_data(show_spinner=False)
-                    def fetch_and_cache_ticket_activity(customer_id, request_id):
-                        onsite_service_request_collection = (
-                            OnsiteServiceRequestCollection()
-                        )
-                        return onsite_service_request_collection.fetch_service_request_activity(
-                            customer_id, request_id
-                        )
+                                customer_address = f"""
+                                {open_service_requests.get(request_id_to_view).get("address").get("street")},
+                                {open_service_requests.get(request_id_to_view).get("address").get("city")},
+                                {open_service_requests.get(request_id_to_view).get("address").get("state")} -
+                                {open_service_requests.get(request_id_to_view).get("address").get("zipcode")}
+                                """
+                                st.markdown(
+                                    f"""
+                                    <B>Address: </B> {customer_address}
+                                    """,
+                                    unsafe_allow_html=True,
+                                )
 
-                    with st.form(
-                        key="_form_post_ticket_activity",
-                        clear_on_submit=True,
-                        border=False,
+                with colp.container(border=False, height=475):
+                    with stylable_container(
+                        key="_sidebar_container_with_border",
+                        css_styles=f"""
+                            {{
+                                background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
+                                border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                                border-radius: 0.6rem;
+                                padding: calc(1em - 1px)
+                            }}
+                            """,
                     ):
-                        cola, colb = st.columns([5, 1], vertical_alignment="bottom")
-
-                        with cola:
-                            engineer_notes = bleach.clean(
-                                st.text_area(
-                                    "Enter Engineer notes",
-                                    placeholder="Share new update to post...",
-                                    label_visibility="collapsed",
-                                    height=80,
-                                )
+                        with st.container(border=False):
+                            st.markdown(
+                                f"""
+                                <H5>Activity</H5>
+                                """,
+                                unsafe_allow_html=True,
                             )
 
-                        with colb:
-                            if st.form_submit_button(
-                                "Post Update",
-                                icon=":material/library_add:",
-                                use_container_width=True,
+                            @st.cache_data(show_spinner=False)
+                            def fetch_and_cache_ticket_activity(session_id, customer_id, request_id):
+                                onsite_service_request_collection = (
+                                    OnsiteServiceRequestCollection()
+                                )
+                                return onsite_service_request_collection.fetch_service_request_activity(
+                                    customer_id, request_id
+                                )
+
+                            with st.form(
+                                key="_form_post_ticket_activity",
+                                clear_on_submit=True,
+                                border=False
                             ):
-                                if len(engineer_notes) > 0:
-                                    onsite_service_request_collection = (
-                                        OnsiteServiceRequestCollection()
+                                with st.expander(
+                                    "Post Update", 
+                                    expanded=False,
+                                    icon=":material/edit_square:"
+                                ):
+                                    engineer_notes = bleach.clean(
+                                        st.text_area(
+                                            "Enter Engineer notes",
+                                            placeholder="Share new update to post...",
+                                            label_visibility="collapsed",
+                                        )
                                     )
 
-                                    onsite_service_request_collection.add_service_request_activity(
-                                        open_service_requests.get(
-                                            request_id_to_view
-                                        ).get("customer_id"),
-                                        request_id_to_view,
-                                        "Engineer",
-                                        engineer_notes,
-                                    )
+                                    with stylable_container(
+                                        "button_post_update",
+                                        css_styles="""
+                                        button {
+                                            background-color: #3367D6;
+                                            border: #274AB3;
+                                            color: #FFFFFF;
+                                        }""",
+                                    ):
+                                        button_post_update = st.form_submit_button(
+                                            "Post Update",
+                                            icon=":material/library_add:",
+                                        )
 
-                                    try:
-                                        fetch_and_cache_ticket_activity.clear()
-                                    except Exception as error:
-                                        pass
+                                    if button_post_update:
+                                        if len(engineer_notes) > 0:
+                                            onsite_service_request_collection = (
+                                                OnsiteServiceRequestCollection()
+                                            )
 
-                                    del st.session_state.onsite_service_requests
+                                            onsite_service_request_collection.add_service_request_activity(
+                                                open_service_requests.get(
+                                                    request_id_to_view
+                                                ).get("customer_id"),
+                                                request_id_to_view,
+                                                "Engineer",
+                                                engineer_notes,
+                                            )
 
-                                    st.session_state.onsite_service_requests = onsite_service_request_collection.fetch_onsite_service_request_details_by_engineer_id(
-                                        st.session_state.engineer_id
-                                    )
+                                            try:
+                                                fetch_and_cache_ticket_activity.clear()
+                                            except Exception as error:
+                                                pass
 
-                                    st.toast("Update posted!")
-                                    time.sleep(3)
-                                    st.rerun()
+                                            del st.session_state.onsite_service_requests
 
-                                else:
-                                    alert = st.warning(
-                                        "Enter notes to add", icon=":material/warning:"
-                                    )
-                                    time.sleep(3)
-                                    alert.empty()
+                                            st.session_state.onsite_service_requests = onsite_service_request_collection.fetch_onsite_service_request_details_by_engineer_id(
+                                                st.session_state.engineer_id
+                                            )
 
-                    ticket_activity = fetch_and_cache_ticket_activity(
-                        open_service_requests.get(request_id_to_view).get(
-                            "customer_id"
-                        ),
-                        request_id_to_view,
-                    )
+                                            st.toast("Update posted!")
+                                            time.sleep(3)
+                                            st.rerun()
 
-                    for activity in ticket_activity:
-                        added_by = activity.get("added_by")
+                                        else:
+                                            alert = st.warning(
+                                                "Enter notes to add", icon=":material/warning:"
+                                            )
+                                            time.sleep(3)
+                                            alert.empty()
 
-                        if added_by.lower() == "admin":
-                            added_by = "Admin"
-                            color = "pink"
-                        elif added_by.lower() == "engineer":
-                            added_by = "Engineer"
-                            color = "green"
-                        elif added_by.lower() == "customer":
-                            added_by = "Customer"
-                            color = "blue"
-                        else:
-                            added_by = "System"
-                            color = "yellow"
+                            ticket_activity = fetch_and_cache_ticket_activity(
+                                st.session_state.session_id,
+                                open_service_requests.get(request_id_to_view).get(
+                                    "customer_id"
+                                ),
+                                request_id_to_view,
+                            )
 
-                        timestamp = datetime.datetime.strptime(
-                            activity.get("timestamp"), "%Y-%m-%d %H:%M:%S"
-                        ).strftime("%B %d, %Y (%H:%M Hrs)")
+                            for activity in ticket_activity:
+                                with st.container(border=False):
+                                    with stylable_container(
+                                        key="_ticket_activity_card",
+                                        css_styles=f"""
+                                            {{
+                                                background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
+                                                border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                                                border-radius: 0.6rem;
+                                                padding: calc(1em - 1px)
+                                            }}
+                                            """,
+                                    ):
+                                        added_by = activity.get("added_by")
 
-                        sac.alert(
-                            label=f"{added_by} - {timestamp}",
-                            description=activity.get("notes"),
-                            variant="quote",
-                            color=color,
-                            icon=False,
-                            key=activity.get("timestamp"),
-                        )
+                                        if added_by.lower() == "engineer":
+                                            image_path = "assets/avatars/chatbot/engineer_avatar.jpg"
+                                        elif added_by.lower() == "customer":
+                                            image_path = "assets/avatars/chatbot/customer_avatar.jpg"
+                                        else:
+                                            image_path = "assets/avatars/chatbot/system_avatar.jpg"
 
-                else:
+                                        timestamp = datetime.datetime.strptime(
+                                            activity.get("timestamp"), "%Y-%m-%d %H:%M:%S"
+                                        ).strftime("%B %d, %Y (%H:%M Hrs)")
+                                            
+                                        with st.container(border=False):
+                                            colx, coly = st.columns([1, 18], vertical_alignment="center")
 
-                    @st.cache_data(show_spinner=False)
-                    def fetch_and_cache_appliance_service_request_history(
-                        customer_id, serial_number
+                                            try:
+                                                colx.image(image_path)
+                                            except Exception as error:
+                                                colx.image("assets/avatars/chatbot/agent_logo.png")
+
+                                            coly.markdown(
+                                                f"{added_by.capitalize()} • {timestamp}", 
+                                                unsafe_allow_html=True
+                                            )
+                                            st.markdown(activity.get("notes"))
+
+                with colq.container(border=False):
+                    with stylable_container(
+                        key="sidebar_container_with_border",
+                        css_styles=f"""
+                            {{
+                                background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
+                                border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                                border-radius: 0.6rem;
+                                padding: calc(1em - 1px)
+                            }}
+                            """,
                     ):
-                        onsite_service_request_collection = (
-                            OnsiteServiceRequestCollection()
-                        )
-                        appliance_service_request_history = onsite_service_request_collection.fetch_resolution_details_by_appliance_serial_number(
-                            customer_id, serial_number
-                        )
-
-                        if request_id_to_view in appliance_service_request_history:
-                            del appliance_service_request_history[request_id_to_view]
-
-                        return appliance_service_request_history
-
-                    appliance_service_request_history = (
-                        fetch_and_cache_appliance_service_request_history(
-                            open_service_requests.get(request_id_to_view).get(
-                                "customer_id"
-                            ),
-                            open_service_requests.get(request_id_to_view)
-                            .get("appliance_details")
-                            .get("serial_number"),
-                        )
-                    )
-
-                    if len(appliance_service_request_history) == 0:
-                        st.markdown("<BR>", unsafe_allow_html=True)
-                        sac.result(
-                            label="No History Available",
-                            description="This appliance has no recorded service history",
-                            status="empty",
+                        st.markdown(
+                            f"""
+                            <H5>Service History</H5>
+                            """,
+                            unsafe_allow_html=True,
                         )
 
-                    else:
-                        cola, _, colb = st.columns(
-                            [0.33, 0.44, 0.16], vertical_alignment="center"
+                        @st.cache_data(show_spinner=False)
+                        def fetch_and_cache_appliance_service_request_history(
+                            session_id, customer_id, serial_number
+                        ):
+                            onsite_service_request_collection = OnsiteServiceRequestCollection()
+
+                            appliance_service_request_history = onsite_service_request_collection.fetch_resolution_details_by_appliance_serial_number(
+                                customer_id, 
+                                serial_number
+                            )
+
+                            if request_id_to_view in appliance_service_request_history:
+                                del appliance_service_request_history[
+                                    request_id_to_view
+                                ]
+
+                            return appliance_service_request_history
+
+                        appliance_service_request_history = (
+                            fetch_and_cache_appliance_service_request_history(
+                                st.session_state.session_id,
+                                open_service_requests.get(request_id_to_view).get(
+                                    "customer_id"
+                                ),
+                                open_service_requests.get(request_id_to_view)
+                                .get("appliance_details")
+                                .get("serial_number"),
+                            )
                         )
 
-                        with cola:
-                            service_request_resolution_details = st.selectbox(
-                                "Select Request Id",
-                                appliance_service_request_history.keys(),
-                                label_visibility="collapsed",
-                                index=None,
-                                placeholder="Request Id",
-                            )
-
-                        with colb:
-                            button_view_resolution_history = st.button(
-                                "View Details",
-                                icon=":material/notes:",
-                                use_container_width=True,
-                            )
-
-                        if button_view_resolution_history:
-                            cola, colb = st.columns(
-                                [0.4, 0.15], vertical_alignment="bottom"
-                            )
-
-                            with cola:
-                                st.write(" ")
-                                st.markdown(
-                                    f"""
-                                    <H5>Service Request Description</H5>
-
-                                    <P>
-                                        <B>Request Title:</B>
-                                        {appliance_service_request_history.get(service_request_resolution_details).get('request_title')}
-                                    </P>
-                                    """,
-                                    unsafe_allow_html=True,
-                                )
-
-                            request_raised_on = datetime.datetime.strptime(
-                                appliance_service_request_history.get(
-                                    service_request_resolution_details
-                                ).get("created_on"),
-                                "%Y-%m-%d %H:%M:%S",
-                            ).strftime("%B %d, %Y")
-
-                            with colb:
-                                st.markdown(
-                                    f"""
-                                    <P align='right'>
-                                        <B>Raised on:</B> {request_raised_on}
-                                    </P>
-                                    """,
-                                    unsafe_allow_html=True,
-                                )
-
-                            st.markdown(
-                                f"""
-                                <P align='left'>
-                                    <B>Description:</B>
-                                    {appliance_service_request_history.get(service_request_resolution_details).get('description')}
-                                </P>
-                                """,
-                                unsafe_allow_html=True,
-                            )
-
-                            sac.divider(align="center", color="#181818")
-                            cola, colb = st.columns(
-                                [0.1, 0.15], vertical_alignment="bottom"
-                            )
-
-                            with cola:
-                                st.markdown(
-                                    "<H5>Engineer Activity and Resolution</H5>",
-                                    unsafe_allow_html=True,
-                                )
-
-                            resolution_start_date = datetime.datetime.strptime(
-                                appliance_service_request_history.get(
-                                    service_request_resolution_details
-                                ).get("start_date"),
-                                "%Y-%m-%d %H:%M:%S",
-                            ).strftime("%B %d, %Y")
-
-                            resolution_end_date = datetime.datetime.strptime(
-                                appliance_service_request_history.get(
-                                    service_request_resolution_details
-                                ).get("end_date"),
-                                "%Y-%m-%d %H:%M:%S",
-                            ).strftime("%B %d, %Y")
-
-                            with colb:
-                                st.markdown(
-                                    f"""
-                                    <P align='right'>
-                                        {resolution_start_date} - {resolution_end_date}
-                                    </P>
-                                    """,
-                                    unsafe_allow_html=True,
-                                )
-
-                            st.markdown(
-                                f"""
-                                <P align='left'>
-                                    {appliance_service_request_history.get(service_request_resolution_details).get('action_performed', '')}
-                                </P>
-
-                                <P align='left'>
-                                    {appliance_service_request_history.get(service_request_resolution_details).get('additional_notes', '')}
-                                </P>
-                                """,
-                                unsafe_allow_html=True,
+                        if len(appliance_service_request_history) == 0:
+                            st.markdown("<BR>", unsafe_allow_html=True)
+                            sac.result(
+                                label="No History Available",
+                                description="This appliance has no recorded service history",
+                                status="empty",
                             )
 
                         else:
-                            sac.alert(
-                                label=f"Selet a Request ID",
-                                description="Choose a Request ID from the list to proceed with your request",
-                                color="yellow",
-                                icon=True,
+                            service_history_request_ids = list(
+                                appliance_service_request_history.keys()
                             )
+
+                            with st.expander(
+                                "Search by Id", 
+                                expanded=False,
+                                icon=":material/manage_search:"
+                            ):
+                                selected_request_id = st.selectbox(
+                                    "Select Request Id",
+                                    service_history_request_ids,
+                                    index=None,
+                                    placeholder="Select Request Id",
+                                    label_visibility="collapsed"
+                                )
+
+                                with stylable_container(
+                                    "button_post_update",
+                                    css_styles="""
+                                    button {
+                                        background-color: #3367D6;
+                                        border: #274AB3;
+                                        color: #FFFFFF;
+                                    }""",
+                                ):
+                                    button_view_details = st.button(
+                                        "View Details",
+                                        icon=":material/notes:",
+                                        width='stretch',
+                                        key="_view_service_history_request_button"
+                                    )
+
+                                if button_view_details:
+                                    dialog_display_past_service_request_details(
+                                        appliance_service_request_history.get(
+                                            selected_request_id
+                                        )
+                                    )
+
+                            for count, request_id in enumerate(
+                                service_history_request_ids
+                            ):
+                                if count > 2: break
+
+                                with st.container(border=False):
+                                    with stylable_container(
+                                        key="_ticket_activity_card",
+                                        css_styles=f"""
+                                            {{
+                                                background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
+                                                border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                                                border-radius: 0.6rem;
+                                                padding: calc(1em - 1px)
+                                            }}
+                                            """,
+                                    ):
+                                        colx, coly = st.columns(
+                                            [1, 7], 
+                                            vertical_alignment="center"
+                                        )
+
+                                        colx.image("assets/placeholders/trident_green.png")
+                                        coly.markdown(
+                                            f"Request Id: {request_id}",
+                                            unsafe_allow_html=True
+                                        )
+
+                                        st.markdown(
+                                            f"""<B>
+                                            {appliance_service_request_history.get(request_id).get("request_title", "Title Unavailable")}
+                                            </B><BR>
+                                            Raised On: {datetime.datetime.strptime(appliance_service_request_history.get(request_id).get("created_on", "Not Found"), "%Y-%m-%d %H:%M:%S").strftime("%B %d, %Y")}
+                                            <BR>""",
+                                            unsafe_allow_html=True
+                                        )
+                                        st.write("")
+                                        if st.button(
+                                            "View Details", 
+                                            icon=":material/notes:",
+                                            width='stretch', 
+                                            key=f"_{request_id}_view_details_button"
+                                        ):
+                                            dialog_display_past_service_request_details(
+                                                appliance_service_request_history.get(
+                                                    request_id
+                                                )
+                                            )
 
             else:
                 st.markdown("<BR>" * 6, unsafe_allow_html=True)
@@ -2938,376 +3053,174 @@ if __name__ == "__main__":
                     description="Choose a Request ID from the list to proceed with your request",
                     status="empty",
                 )
+            
+            st.markdown("<BR>", unsafe_allow_html=True)
 
         else:
-            with sidebar_container:
-                if not st.session_state.cache_model_number:
-                    available_sub_categories = (
-                        st.session_state.distinct_appliance_details.keys()
-                    )
+            AVATAR_AGENT = "assets/avatars/chatbot/agent_logo.png"
 
-                    input_sub_category = st.selectbox(
-                        "Select Appliance",
-                        available_sub_categories,
-                        index=None,
-                        placeholder="Select Appliance",
-                        label_visibility="collapsed",
-                    )
+            try:
+                adk_runner, current_session_id = initialize_adk(
+                    st.session_state.session_id,
+                    user_id=st.session_state.engineer_id
+                )
 
-                    available_brands = (
-                        st.session_state.distinct_appliance_details.get(
-                            input_sub_category
-                        ).keys()
-                        if input_sub_category
-                        else []
-                    )
+            except Exception as e:
+                st.error(
+                    f"""
+                    **Fatal Error:** Could not initialize the ADK Runner or 
+                    Session Service. Please try reloading the app or contact 
+                    support.
+                    """,
+                    icon=":material/cancel:"
+                )
 
-                    input_brand = st.selectbox(
-                        "Select the Brand",
-                        available_brands,
-                        index=None,
-                        placeholder="Select the Brand",
-                        label_visibility="collapsed",
-                    )
+                st.stop()
 
-                    available_models = (
-                        st.session_state.distinct_appliance_details.get(
-                            input_sub_category
-                        ).get(input_brand)
-                        if input_brand
-                        else []
-                    )
+            if 'messages' not in st.session_state:
+                st.session_state['messages'] = []
 
-                    input_model_number = st.selectbox(
-                        "Select the Model",
-                        available_models,
-                        index=None,
-                        placeholder="Select the Model",
-                        label_visibility="collapsed",
-                    )
+            with st.sidebar:
+                st.space(size=25)
 
-                    if st.button(
-                        "Configure Chatbot",
-                        # icon=":material/sync_alt:",
-                        use_container_width=True,
-                        disabled=not (input_model_number),
-                    ):
-                        set_cache_model_number(
-                            input_brand, input_sub_category, input_model_number
-                        )
+                colx, coly = st.columns([4.5, 1])
+
+                if coly.button(
+                    "",
+                    icon=":material/logout:",
+                    help="Logout"
+                ):
+                    st.session_state.clear()
+                    st.cache_data.clear()
+                    st.cache_resource.clear()
+
+                    st.logout()
+                    st.stop()
+
+                if colx.button(
+                    "New Chat",
+                    icon=":material/edit_square:",
+                    width="stretch",
+                    help="New Chat"
+                ):
+                    try:
+                        initialize_adk.clear()
+
+                        del st.session_state['messages']
+                        del st.session_state['adk_session_id']
+
                         st.rerun()
 
-            if st.session_state.cache_model_number:
-                if "messages" not in st.session_state:
-                    st.session_state.messages = []
+                    except Exception as error: pass
+            
+            for message in st.session_state['messages']:
+                if message["role"] == "user":
+                    avatar_url = profile_picture_url
+                else:
+                    avatar_url = AVATAR_AGENT
 
-                for message in st.session_state.messages:
-                    with st.chat_message(message["role"]):
-                        st.markdown(message["content"])
+                with st.chat_message(message["role"], avatar=avatar_url):
+                    st.markdown(message["content"], unsafe_allow_html=False)
+            
+            if prompt := st.chat_input("Type your question here..."):
+                st.session_state['messages'].append(
+                    {"role": "user", "content": prompt}
+                )
 
-                if "gemini_flash" not in st.session_state:
-                    st.toast(
-                        f"Configuring chatbot for {
-                            st.session_state.cache_model_number}. This may take a minute."
-                    )
+                with st.chat_message("user", avatar=profile_picture_url):
+                    st.markdown(prompt, unsafe_allow_html=False)
 
-                    if st.session_state.themes["current_theme"] == "dark":
-                        preloader_path = "assets/preloaders/work_in_progress_dark.gif"
-                    else:
-                        preloader_path = "assets/preloaders/work_in_progress_light.gif"
+                with st.chat_message("assistant", avatar=AVATAR_AGENT):
+                    message_placeholder = st.empty()
 
-                    with open(preloader_path, "rb") as f:
-                        image_data = f.read()
-                        encoded_image = base64.b64encode(image_data).decode()
-
-                        st.write(" ")
-                        preloader_work_in_progress = st.markdown(
-                            f'<BR><BR><div class="rounded-image"><img src="data:image/png;base64,{encoded_image}"></div>',
-                            unsafe_allow_html=True,
-                        )
-
-                    with preloader_work_in_progress:
-                        configuration_information = f"""
-                        Configuring chatbot for
-                        {st.session_state.cache_brand} {st.session_state.cache_sub_category} ({st.session_state.cache_model_number})
-                        """
-
-                        warning_configuring_chatbot = st.sidebar.info(
-                            configuration_information, icon=":material/info:"
-                        )
-
-                        query_appliances = Appliances()
-
-                        if "cache_category" not in st.session_state:
-                            st.session_state.cache_category = (
-                                query_appliances.fetch_category_by_sub_caegory(
-                                    st.session_state.cache_sub_category
-                                )
-                            )
-
+                    with st.spinner("Thinking.....", show_time=True):
                         try:
-                            st.session_state.gemini_flash = build_context_cache(
-                                st.session_state.cache_brand,
-                                st.session_state.cache_category,
-                                st.session_state.cache_sub_category,
-                                st.session_state.cache_model_number,
+                            agent_response = run_adk_sync(
+                                st.session_state.engineer_id, 
+                                adk_runner, 
+                                current_session_id, 
+                                prompt
                             )
-
-                            st.session_state.flag_use_context_cache = True
 
                         except Exception as error:
-                            service_manual_uri = f"""gs://service_manual_bucket/{
-                                st.session_state.cache_category.lower().replace(
-                                    " ",
-                                    "_").replace(
-                                    "-",
-                                    "_").replace(
-                                    "/",
-                                    "_")}/{
-                                st.session_state.cache_sub_category.lower().replace(
-                                    " ",
-                                    "_").replace(
-                                    "-",
-                                    "_").replace(
-                                    "/",
-                                    "_")}_service_guide.pdf"""
+                            agent_response = f"""
+                            Sorry, an error occurred while 
+                            processing your request. Please try again later.
+                            Error: {error}
+                            """
 
-                            service_engineer_chatbot = ServiceEngineerChatbot()
-
-                            st.session_state.gemini_flash = (
-                                service_engineer_chatbot.construct_flash_model(
-                                    st.session_state.cache_brand,
-                                    st.session_state.cache_sub_category,
-                                    st.session_state.cache_model_number,
-                                )
-                            )
-                            st.session_state.flag_use_context_cache = False
-
-                        warning_configuring_chatbot.empty()
-
-                if st.session_state.cache_model_number:
-                    with sidebar_container:
-                        configuration_information = (
-                            f"Double-check information before relying on it."
+                        st.session_state.messages.append(
+                            {
+                                "role": "assistant", 
+                                "content": agent_response
+                            }
                         )
 
-                        sac.alert(
-                            label=f"Our chatbot is still learning! ",
-                            description=configuration_information,
-                            color="orange",
-                            icon=True,
-                        )
-
-                    with st.sidebar:
-                        st.write(" ")
-                        st.markdown("<BR>" * 2, unsafe_allow_html=True)
-
-                        cola, colb = st.columns([4, 1], vertical_alignment="center")
-
-                        with colb:
-                            if st.button(
-                                "",
-                                icon=":material/cancel:",
-                                use_container_width=True,
-                                help="Clear and Reconfigure",
-                            ):
-                                del st.session_state.cache_model_number
-                                del st.session_state.cache_brand
-                                del st.session_state.cache_category
-                                del st.session_state.cache_sub_category
-
-                                del st.session_state.messages
-                                del st.session_state.chat
-                                del st.session_state.service_guide
-
-                                del st.session_state.gemini_flash
-                                del st.session_state.flag_use_context_cache
-
-                                st.rerun()
-
-                        with cola:
-                            service_manual_bucket = ServiceManualBucket()
-                            service_manual_url = service_manual_bucket.fetch_service_manual_url(
-                                f"{
-                                    st.session_state.cache_category.lower().replace(
-                                        ' ',
-                                        '_').replace(
-                                        '-',
-                                        '_').replace(
-                                        '/',
-                                        '_')}/{
-                                    st.session_state.cache_sub_category.lower().replace(
-                                        " ",
-                                        "_").replace(
-                                        "-",
-                                        "_").replace(
-                                        "/",
-                                        "_")}_service_guide.pdf"
-                            )
+                    def response_generator(response):
+                        for word in response:
+                            asyncio.run(asyncio.sleep(0.0025))
 
                             try:
-                                st.link_button(
-                                    label=f"Launch Service Guide",
-                                    url=service_manual_url,
-                                    icon=":material/quick_reference:",
-                                    use_container_width=True,
-                                )
+                                yield word.text
+                            except Exception as error:
+                                yield word
 
-                            except BaseException:
-                                st.error("Unable to display button")
-
-                if "chat" not in st.session_state:
-                    service_engineer_chatbot = ServiceEngineerChatbot()
-
-                    st.session_state.chat = (
-                        service_engineer_chatbot.create_chat_instance(
-                            context_cache=st.session_state.gemini_flash,
-                            chat_history=st.session_state.messages,
-                            use_context_cache=st.session_state.flag_use_context_cache,
+                    try:
+                        response = st.write_stream(
+                            response_generator(agent_response)
                         )
-                    )
 
-                    welcome_message = f"""
-                    Hello there! I am your virtual assistant, LogIQ.
+                    except Exception as err:
+                        fallback_message = (
+                            f"Sorry, I am unable to answer this."
+                        )
 
-                    I'm ready to assist you with questions on **{st.session_state.cache_brand} {st.session_state.cache_sub_category}** (Model: {st.session_state.cache_model_number}).  I can help you troubleshoot issues, replace parts, and offer useful maintenance tips to keep your appliance running smoothly.
-
-                    What can I do for you today to make sure your appliance works at its best?
-                    """
-                    st.session_state.messages.append(
-                        {
-                            "role": "assistant",
-                            "content": welcome_message,
-                        }
-                    )
-                    st.rerun()
-
-                if prompt := st.chat_input("Type your question here..."):
-                    prompt = bleach.clean(prompt)
-                    st.session_state.messages.append(
-                        {"role": "user", "content": prompt}
-                    )
-
-                    with st.chat_message("user"):
-                        st.markdown(prompt)
-
-                    with st.chat_message("assistant"):
-                        with st.spinner("Thinking...", show_time=True):
-
-                            if st.session_state.flag_use_context_cache == True:
-                                response_from_model = (
-                                    st.session_state.chat.send_message(
-                                        message=prompt,
-                                    )
-                                )
-
-                            else:
-                                service_manual_uri = (
-                                    "gs://service_manual_bucket/"
-                                    + st.session_state.cache_category.lower()
-                                    .replace(" ", "_")
-                                    .replace("-", "_")
-                                    .replace("/", "_")
-                                    + "/"
-                                    + st.session_state.cache_sub_category.lower()
-                                    .replace(" ", "_")
-                                    .replace("-", "_")
-                                    .replace("/", "_")
-                                    + "_service_guide.pdf"
-                                )
-
-                                response_from_model = (
-                                    st.session_state.chat.send_message(
-                                        message=[
-                                            types.Part.from_uri(
-                                                file_uri=service_manual_uri,
-                                                mime_type="application/pdf",
-                                            ),
-                                            prompt,
-                                        ],
-                                    )
-                                )
-
-                            def response_generator(response):
-                                for word in response:
-                                    time.sleep(0.025)
-
-                                    try:
-                                        yield word.text
-                                    except Exception as err:
-                                        yield word
-
-                            try:
-                                response = st.write_stream(
-                                    response_generator(response_from_model.text)
-                                )
-
-                            except Exception as err:
-                                fallback_message = (
-                                    f"Sorry, I am unable to answer this.\nReason: {err}"
-                                )
-
-                                response = st.write_stream(
-                                    response_generator(fallback_message)
-                                )
-
-                    st.session_state.messages.append(
-                        {"role": "assistant", "content": response}
-                    )
-
-            else:
-                with st.sidebar:
-                    st.write(" ")
-                    st.markdown(
-                        "<BR>" * 2,
-                        unsafe_allow_html=True,
-                    )
-
-                    cola, colb = st.columns([4.5, 1])
-
-                    with cola:
-                        if st.button(
-                            "Manage Account",
-                            icon=":material/manage_accounts:",
-                            use_container_width=True,
-                        ):
-                            dialog_manage_account()
-
-                    with colb:
-                        if st.button(
-                            "",
-                            icon=":material/logout:",
-                            help="Log Out",
-                            use_container_width=True,
-                        ):
-                            previous_theme = "dark"
-                            tdict = st.session_state.themes["dark"]
-
-                            for vkey, vval in tdict.items():
-                                if vkey.startswith("theme"):
-                                    st._config.set_option(vkey, vval)
-
-                            st.session_state.themes["refreshed"] = False
-                            st.session_state.themes["current_theme"] = "light"
-
-                            st.session_state.clear()
-                            st.cache_data.clear()
-                            st.cache_resource.clear()
-
-                            st.rerun()
-
+                        response = st.write_stream(
+                            response_generator(fallback_message)
+                        )
+            
+            if not st.session_state['messages']:
                 st.markdown(
-                    "<BR><BR><BR><H2>LogIQ - Service Engineer Chatbot</H2><H4>Diagnose, Troubleshoot, and Repair White Label Appliances with Expert Precision!</H4>Facing an issue with your kitchen appliance, but not sure whom to call? Or perhaps you need immediate assistance with a repair? Simply describe your problem, and our chatbot powered by Gemini 1.5 will help you troubleshoot these problems in a single tap!",
+                    f"""
+                    <BR><BR><BR><BR><BR>
+                    <H1 class='h1-home-welcome-title'>
+                        Hello, {st.session_state.engineer_details.get("first_name")} {st.session_state.engineer_details.get("last_name")}
+                    </H1>
+                    """,
                     unsafe_allow_html=True,
                 )
 
-                usage_instructions = """
-                **Here's how you can get started:**
+                st.markdown(
+                    """
+                    <H1 class='h1-home-welcome-subtitle'>
+                        How can I help you today?
+                    </H1><BR>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
-                1. Simply select the brand and model of your appliance, and type in the issues you're facing or the specific service you need.
-                2. Wait for the chatbot to analyze the service manuals/guides and provide expert advice and troubleshooting tips right away.
+                welcome_message = f"""
+                Your conversations may be reviewed by human evaluators for the 
+                purpose of improving the overall quality, reliability, and 
+                effectiveness of this product. Please avoid sharing sensitive, 
+                personal, or confidential information that you would not be 
+                comfortable being accessed, or analyzed!
+
+                Learn more here: 
+                github.com/thisisashwinraj/logiq-smart-appliance-management
                 """
-                st.info(usage_instructions)
+
+                if st.session_state.themes["current_theme"] == "dark":
+                    st.info(
+                        welcome_message, 
+                        icon=":material/security:"
+                    )
+
+                else:
+                    st.warning(
+                        welcome_message, 
+                        icon=":material/security:"
+                    )
 
     else:
         if "themes" not in st.session_state:
@@ -3316,24 +3229,26 @@ if __name__ == "__main__":
                 "refreshed": True,
                 "light": {
                     "theme.base": "dark",
-                    "theme.backgroundColor": "#111111",
-                    "theme.primaryColor": "#64ABD8",
-                    "theme.secondaryBackgroundColor": "#181818",
+                    "theme.backgroundColor": "#131314",
+                    "theme.primaryColor": "#8AB4F8",
+                    "theme.secondaryBackgroundColor": "#18191B",
                     "theme.textColor": "#EAE9FC",
+                    "cardColor": "#f9fafb",
                     "containerColor": "#f0f2f6",
                     "containerBoundaryColor": "rgba(229, 231, 235, 1)",
-                    "alertColor": "orange",
+                    "alertColor": "#3367D6",
                     "button_face": ":material/dark_mode:",
                 },
                 "dark": {
                     "theme.base": "light",
-                    "theme.backgroundColor": "#FBFBFE",
-                    "theme.primaryColor": "#266b97",
-                    "theme.secondaryBackgroundColor": "#f0f2f6",
+                    "theme.backgroundColor": "#FFFFFF",
+                    "theme.primaryColor": "#3367D6",
+                    "theme.secondaryBackgroundColor": "#F1F3F4",
                     "theme.textColor": "#040316",
-                    "containerColor": "#181818",
+                    "cardColor": "#202124",
+                    "containerColor": "#18191B",
                     "containerBoundaryColor": "rgba(49, 51, 63, 0.2)",
-                    "alertColor": "",
+                    "alertColor": "#8AB4F8",
                     "button_face": ":material/light_mode:",
                 },
             }
@@ -3363,12 +3278,20 @@ if __name__ == "__main__":
             colx.markdown("<BR>", unsafe_allow_html=True)
 
             if st.session_state.themes["current_theme"] == "dark":
-                colx.image("assets/logos/logiq_logo_dark.png", use_container_width=True)
+                try:
+                    colx.image(
+                        "assets/logos/logiq_logo_dark.png", 
+                        width='stretch'
+                    )
+                except: pass
 
             else:
-                colx.image(
-                    "assets/logos/logiq_logo_light.png", use_container_width=True
-                )
+                try:
+                    colx.image(
+                        "assets/logos/logiq_logo_light.png", 
+                        width='stretch'
+                    )
+                except: pass
 
             st.markdown("<BR>" * 2, unsafe_allow_html=True)
             st.markdown(
@@ -3400,21 +3323,21 @@ if __name__ == "__main__":
             checkbox_remember_me = col1.checkbox("Remember me", value=True)
 
             if col2.button(
-                label="Forgot Password?", use_container_width=True, type="tertiary"
+                label="Forgot Password?", width='stretch', type="tertiary"
             ):
                 reset_password()
 
             cola, colb, _ = st.columns([7.1, 0.9, 1])
 
             button_login = cola.button(
-                "LogIn to the Engineer App", use_container_width=True, type="primary"
+                "LogIn to the Engineer App", width='stretch', type="primary"
             )
 
             if colb.button(
                 "",
                 icon=":material/copyright:",
                 help="Attribution",
-                use_container_width=True,
+                width='stretch',
             ):
                 dialog_attribution()
 

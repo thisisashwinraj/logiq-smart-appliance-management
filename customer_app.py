@@ -60,18 +60,29 @@ warnings.filterwarnings("ignore")
 
 ################################ [CUSTOM CSS] #################################
 
-st.html(
-    """
-    <style>
-        section[data-testid="stSidebar"] {
-            width: 335px !important; # Set the width to your desired value
-        }
-    </style>
-    """
-)
+#st.html(
+#    """
+#    <style>
+#        section[data-testid="stSidebar"] {
+#            width: 335px !important; # Set the width to your desired value
+#        }
+#    </style>
+#    """
+#)
 
 st.html(
     "<style>[data-testid='stHeaderActionElements'] {display: none;}</style>"
+)
+
+st.html(
+    """
+    <style>
+    section[data-testid="stSidebar"] > div:first-child {
+        height: 100vh;
+        overflow: hidden;
+    }
+    </style>
+    """
 )
 
 st.markdown(
@@ -117,7 +128,7 @@ st.markdown(
 if "customer_id" not in st.session_state:
     st.session_state.customer_id = None
 
-if "current_session_id" not in st.session_state:
+if "current_session" not in st.session_state:
     st.session_state.current_session = str(uuid.uuid4()).replace("-", "")[:12]
 
 if "recent_appliance_serial_numbers" not in st.session_state:
@@ -234,31 +245,69 @@ if "distinct_appliance_data" not in st.session_state:
     except Exception as error:
         st.session_state.distinct_appliance_data = {}
 
-############################ [STREAMLIT DIALOGS] ##############################
+############################ [STREAMLIT CACHES] ###############################
 
-@st.dialog("Manage Account", width="large")
-def dialog_manage_account():
-    cola, _, colb = st.columns([1, 0.05, 4], vertical_alignment="top")
+@st.cache_data(show_spinner=False)
+def fetch_and_cache_profile_picture(session_id, customer_id):
+    print(f"... fetch_and_cache_profile_picture ran [{session_id}]")
+    try:
+        profile_pic_bucket = ProfilePicturesBucket()
 
-    with cola:
-        try:
-            profile_pic_bucket = ProfilePicturesBucket()
-
-            profile_picture_url = profile_pic_bucket.fetch_profile_picture_url(
+        profile_picture_url = (
+            profile_pic_bucket.fetch_profile_picture_url(
                 user_type="customers",
-                user_id=st.session_state.customer_id,
+                user_id=customer_id,
+            )
+        )
+
+    except Exception as error:
+        if (
+            st.session_state.customer_details.get(
+                "gender"
+            ).lower()
+            == "male"
+        ):
+            profile_picture_url = (
+                "assets/avatars/customers/male8.png"
             )
 
-        except Exception as error:
-            if st.session_state.customer_details.get("gender").lower() == "male":
-                profile_picture_url = "assets/avatars/customers/male8.png"
+        else:
+            profile_picture_url = (
+                "assets/avatars/customers/female8.png"
+            )
 
-            else:
-                profile_picture_url = "assets/avatars/customers/female8.png"
+    return profile_picture_url
+
+
+@st.cache_data(show_spinner=False)
+def fetch_and_cache_customer_appliance_serials(session_id):
+    query_customer_appliances = QueryCustomerAppliances()
+
+    st.session_state.customer_appliance_serial_numbers = (
+        query_customer_appliances.fetch_appliance_serial_numbers_by_customer_id(
+            customer_id=st.session_state.customer_id, limit=-1
+        )
+    )
+
+
+############################ [STREAMLIT DIALOGS] ##############################
+
+@st.dialog("Manage Account", width="medium")
+def dialog_manage_account():
+    cola, _, colb = st.columns(
+        [1, 0.05, 4], 
+        vertical_alignment="top"
+    )
+
+    with cola:
+        profile_picture_url = fetch_and_cache_profile_picture(
+            st.session_state.current_session,
+            st.session_state.customer_id
+        )
 
         st.image(
             profile_picture_url,
-            use_container_width=True,
+            width='stretch',
         )
 
     with colb:
@@ -283,10 +332,10 @@ def dialog_manage_account():
 
         st.markdown(
             f"""
-            ☎️ **Phone No.:** {st.session_state.customer_details.get(
+            :material/phone_in_talk: **Phone No.:** {st.session_state.customer_details.get(
                 'phone_number')}
             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            📧 **Email:** {st.session_state.customer_details.get('email')}
+            :material/mail: **Email:** {st.session_state.customer_details.get('email')}
             """,
             unsafe_allow_html=False,
         )
@@ -337,12 +386,12 @@ def dialog_manage_account():
             accept_multiple_files=False,
         )
 
-        cola, colb, _ = st.columns([1.9, 0.35, 2.3])
+        cola, _ = st.columns([1, 2.5])
 
         if cola.button(
             "Update Profile",
             icon=":material/person_check:",
-            use_container_width=True,
+            width='stretch'
         ):
             migrate_customers = MigrateCustomers()
             profile_picture_url = None
@@ -430,15 +479,6 @@ def dialog_manage_account():
                 time.sleep(3)
                 alert_warning.empty()
 
-        if colb.button(
-            "",
-            icon=":material/clear_all:",
-            help="Discard and Exit",
-            use_container_width=True,
-            key="_dicard_updates_button_1",
-        ):
-            st.rerun()
-
     elif selected_tab == "Location Details":
         cola, colb = st.columns([3, 1])
 
@@ -515,12 +555,12 @@ def dialog_manage_account():
             )
         )
 
-        cola, colb, _ = st.columns([1.9, 0.35, 2.3])
+        cola, _ = st.columns([1, 2.5])
 
         if cola.button(
             "Update Profile",
             icon=":material/person_check:",
-            use_container_width=True,
+            width='stretch',
         ):
             migrate_customers = MigrateCustomers()
 
@@ -570,17 +610,8 @@ def dialog_manage_account():
                 time.sleep(3)
                 alert_warning.empty()
 
-        if colb.button(
-            "",
-            icon=":material/clear_all:",
-            help="Discard and Exit",
-            use_container_width=True,
-            key="_dicard_updates_button_2",
-        ):
-            st.rerun()
 
-
-@st.dialog("Credits and Attribution", width="large")
+@st.dialog("Credits and Attribution", width="medium")
 def dialog_attribution():
     sac.alert(
         label=f"Acknowledgments and Fair Use Notice",
@@ -592,7 +623,7 @@ def dialog_attribution():
     )
 
 
-@st.dialog("Register New Appliance", width="large")
+@st.dialog("Register New Appliance", width="medium")
 def register_new_appliance():
     step_register_appliance = sac.steps(
         items=[
@@ -878,7 +909,7 @@ def register_new_appliance():
         )
 
         if st.button(
-            "Submit Details and Register Appliance",
+            "Register Appliance",
             type="primary",
             icon=":material/check:",
         ):
@@ -1073,14 +1104,14 @@ def register_new_appliance():
                     st.rerun()
 
 
-@st.dialog("Appliance Details", width="large")
+@st.dialog("Appliance Details", width="medium")
 def view_customer_appliance_details(appliance_details):
     cola, _, colb = st.columns([5, 0.3, 8])
 
     with cola:
         st.image(
             appliance_details["appliance_image_url"],
-            use_container_width=True,
+            width='stretch',
         )
 
     with colb:
@@ -1096,10 +1127,10 @@ def view_customer_appliance_details(appliance_details):
         )
 
         st.markdown(
-            f"<BR>📅 <B>Purchased On:</B> {
-                appliance_details['purchase_date']}&nbsp;&nbsp; 📅 <B>Installed On:</B> {
-                appliance_details['installation_date']}<BR>✅ {
-                appliance_details['warranty_period']}-Month Manufacturer Warranty, Expires on {
+            f"<BR>:material/local_mall: <B>Purchased on:</B> {
+                appliance_details['purchase_date']}&nbsp;&nbsp; :material/date_range: <B>Installed on:</B> {
+                appliance_details['installation_date']}<BR>:material/privacy_tip: {
+                appliance_details['warranty_period']}-month manufacturer warranty, expires on {
                     appliance_details['warranty_expiration']}",
             unsafe_allow_html=True,
         )
@@ -1126,7 +1157,7 @@ def view_customer_appliance_details(appliance_details):
             st.link_button(
                 "Product Invoice",
                 url=product_invoice_url,
-                use_container_width=True,
+                width='stretch',
                 icon=":material/receipt_long:",
             )
 
@@ -1134,12 +1165,12 @@ def view_customer_appliance_details(appliance_details):
             st.link_button(
                 "Warranty Certificate",
                 url=warranty_certificate_url,
-                use_container_width=True,
+                width='stretch',
                 icon=":material/description:",
             )
 
 
-@st.dialog("Create New Onsite Service Request", width="large")
+@st.dialog("Create New Request", width="medium")
 def create_new_onsite_service_request():
     step_register_service_request = sac.steps(
         items=[
@@ -1149,18 +1180,7 @@ def create_new_onsite_service_request():
     )
     st.markdown(" ", unsafe_allow_html=True)
 
-    with st.spinner("Fetching data...", show_time=True):
-
-        @st.cache_data(show_spinner=False)
-        def fetch_and_cache_customer_appliance_serials(session_id):
-            query_customer_appliances = QueryCustomerAppliances()
-
-            st.session_state.customer_appliance_serial_numbers = (
-                query_customer_appliances.fetch_appliance_serial_numbers_by_customer_id(
-                    customer_id=st.session_state.customer_id, limit=-1
-                )
-            )
-
+    with st.spinner("Loading...", show_time=True):
         fetch_and_cache_customer_appliance_serials(
             session_id=st.session_state.current_session,
         )
@@ -1527,7 +1547,7 @@ def create_new_onsite_service_request():
                 st.rerun()
 
 
-@st.dialog("Service Request Details", width="large")
+@st.dialog("Request Details", width="medium")
 def view_service_request_details(service_request_id, service_request_details):
     with st.spinner(
         "Fetching details...", 
@@ -1563,9 +1583,9 @@ def view_service_request_details(service_request_id, service_request_details):
         st.markdown(
             f"""
             <P class="p-vsrd-1">Request Id: {service_request_id}</P>
-            <H1 class="h1-vsrd-1">
+            <H2 class="h1-vsrd-1">
                 {service_request_details.get('request_title')}
-            </H1>
+            </H2>
             """,
             unsafe_allow_html=True,
         )
@@ -1573,7 +1593,7 @@ def view_service_request_details(service_request_id, service_request_details):
     with colb:
         st.markdown(
             f"""
-            <H2 class="h2-vsrd-2" align='right'>
+            <H3 class="h2-vsrd-2" align='right'>
                 <B>Status: {
                     service_request_details.get('ticket_status').capitalize()
                 }</B>
@@ -1589,7 +1609,7 @@ def view_service_request_details(service_request_id, service_request_details):
             service_request_details.get("appliance_details").get(
                 "appliance_image_url"
             ),
-            use_container_width=True,
+            width='stretch',
         )
 
     with colb:
@@ -1614,9 +1634,9 @@ def view_service_request_details(service_request_id, service_request_details):
         if service_request_details.get("assignment_status").lower() == "confirmed":
             st.markdown(
                 f"""
-                📅 Request Created On: {request_created_on.strftime('%B %d, %Y (%A)')}
+                :primary[:material/calendar_month:] Request Created On: {request_created_on.strftime('%B %d, %Y (%A)')}
                 <BR>
-                ✅ Engineer {engineer_name} (Id: {assigned_to_engineer_id}) 
+                :green[:material/assignment_turned_in:] Engineer {engineer_name} (Id: {assigned_to_engineer_id}) 
                 assigned to your request
                 """,
                 unsafe_allow_html=True,
@@ -1625,9 +1645,9 @@ def view_service_request_details(service_request_id, service_request_details):
         else:
             st.markdown(
                 f"""
-                📅 Request Created On: {request_created_on.strftime('%B %d, %Y (%A)')}
+                :primary[:material/calendar_month:] Request Created On: {request_created_on.strftime('%B %d, %Y (%A)')}
                 <BR>
-                ⚠️ We will notify you when an engineer is assigned to your request
+                :yellow[:material/warning:] We will notify you when an engineer is assigned to your request
                 """,
                 unsafe_allow_html=True,
             )
@@ -1660,27 +1680,27 @@ def view_service_request_details(service_request_id, service_request_details):
 
         with colx:
             st.markdown(
-                f"#️⃣ <B>Request Type:</B> {
+                f"<B>Request Type:</B> {
                     service_request_details.get('request_type')}",
                 unsafe_allow_html=True,
             )
 
         with coly:
             st.markdown(
-                f"<P align='right'>🔢 <B>Serial No.:</B> {
+                f"<P align='right'><B>Serial No.:</B> {
                     service_request_details.get('appliance_details').get('serial_number')}</P>",
                 unsafe_allow_html=True,
             )
 
         st.markdown(
-            f"<P align='justify'>ℹ️ <B>Request Description:</B><BR>{
+            f"<P align='justify'><B>Request Description:</B><BR>{
                 service_request_details.get('description')}</P>",
             unsafe_allow_html=True,
         )
 
     elif selected_tab == "Appliance Details":
         st.markdown(
-            f"📛 <B>Appliance Name:</B> {
+            f":primary[:material/power:] <B>Appliance Name:</B> {
                 service_request_details.get('appliance_details').get('brand')} {
                 service_request_details.get('appliance_details').get('sub_category')}",
             unsafe_allow_html=True,
@@ -1690,27 +1710,27 @@ def view_service_request_details(service_request_id, service_request_details):
 
         with cola:
             st.markdown(
-                f"🔢 <B>Serial Number:</B> {
+                f":primary[:material/grid_3x3:] <B>Serial Number:</B> {
                     service_request_details.get('appliance_details').get('serial_number')}",
                 unsafe_allow_html=True,
             )
 
         with colb:
             st.markdown(
-                f"🏷️ <B>Model Number:</B> {
+                f":primary[:material/model_training:] <B>Model Number:</B> {
                     service_request_details.get('appliance_details').get('model_number')}",
                 unsafe_allow_html=True,
             )
 
         with colc:
             st.markdown(
-                f"📆 <B>Purchased On:</B> {
+                f":primary[:material/event_available:] <B>Purchased On:</B> {
                     service_request_details.get('appliance_details').get('purchase_date')}",
                 unsafe_allow_html=True,
             )
 
         st.markdown(
-            f"✅ {
+            f":primary[:material/privacy_tip:] {
                 service_request_details.get('appliance_details').get('warranty_period')}-Month Manufacturer Warranty, Expires on {
                 service_request_details.get('appliance_details').get('warranty_expiration')} (Purchased from {
                 service_request_details.get('appliance_details').get('seller')})",
@@ -1736,7 +1756,7 @@ def view_service_request_details(service_request_id, service_request_details):
             st.link_button(
                 "Download Warranty Certificate",
                 url=warranty_certificate_url,
-                use_container_width=True,
+                width='stretch',
                 icon=":material/download:",
             )
 
@@ -1756,7 +1776,7 @@ def view_service_request_details(service_request_id, service_request_details):
                 icon=":material/receipt_long:",
                 help="Product Invoice",
                 url=product_invoice_url,
-                use_container_width=True,
+                width='stretch',
             )
 
     elif selected_tab == "Ticket Activity":
@@ -1771,7 +1791,7 @@ def view_service_request_details(service_request_id, service_request_details):
             )
 
         with colb:
-            st.button("Post Update", use_container_width=True)
+            st.button("Post Update", width='stretch')
 
         @st.cache_data(show_spinner=False)
         def fetch_and_cache_ticket_activity(customer_id, request_id, session_id):
@@ -1779,12 +1799,13 @@ def view_service_request_details(service_request_id, service_request_details):
             return onsite_service_request_collection.fetch_service_request_activity(
                 customer_id, request_id
             )
-
-        ticket_activity = fetch_and_cache_ticket_activity(
-            st.session_state.customer_id,
-            service_request_id,
-            session_id=st.session_state.current_session,
-        )
+        
+        with st.spinner("Loading...", show_time=True):
+            ticket_activity = fetch_and_cache_ticket_activity(
+                st.session_state.customer_id,
+                service_request_id,
+                session_id=st.session_state.current_session,
+            )
 
         for activity in ticket_activity:
             added_by = activity.get("added_by")
@@ -1868,14 +1889,15 @@ def view_service_request_details(service_request_id, service_request_details):
                 del otp_alert
 
 
-@st.dialog("Edit Request Details", width="large")
+@st.dialog("Edit Request", width="medium")
 def edit_service_request_details(service_request_id, service_request_details):
     cola, colb = st.columns(2)
 
     with cola:
         updated_request_title = bleach.clean(
             st.text_input(
-                "Request Title", value=service_request_details.get("request_title")
+                "Request Title", 
+                value=service_request_details.get("request_title")
             )
         )
 
@@ -1889,7 +1911,9 @@ def edit_service_request_details(service_request_id, service_request_details):
         )
 
     updated_description = st.text_area(
-        "Description", value=service_request_details.get("description")
+        "Description", 
+        value=service_request_details.get("description"),
+        height=150
     )
 
     cola, colb, _ = st.columns([5, 1.2, 8])
@@ -1898,14 +1922,7 @@ def edit_service_request_details(service_request_id, service_request_details):
         button_update_service_request = st.button(
             "Update Request Details",
             icon=":material/update:",
-            use_container_width=True,
-        )
-
-    with colb:
-        button_delete_service_request = st.button(
-            "",
-            icon=":material/cancel:",
-            use_container_width=True,
+            width='stretch',
         )
 
     if button_update_service_request:
@@ -1940,9 +1957,6 @@ def edit_service_request_details(service_request_id, service_request_details):
 
             time.sleep(3)
             st.rerun()
-
-    if button_delete_service_request:
-        st.rerun()
 
 ############################# [CACHED FUNCTIONS] ##############################
 
@@ -2076,6 +2090,7 @@ def fetch_and_cache_all_customer_service_requests(session_id):
 
 @st.cache_data(show_spinner=False, ttl="30 minutes")
 def get_greetings(is_ist, session_id):
+    print(f"... get_greetings ran with is_ist: {is_ist} [{session_id}]")
     morning_start = timedelta(hours=5)
     afternoon_start = timedelta(hours=12)
     evening_start = timedelta(hours=17)
@@ -2099,6 +2114,7 @@ def get_greetings(is_ist, session_id):
 
 @st.cache_data(show_spinner=False)
 def get_customer_details(full_name, session_id):
+    print(f"... get_customer_details ran [{session_id}]")
     query_customers = QueryCustomers()
 
     customer_details = query_customers.fetch_customer_details_by_username(
@@ -2187,11 +2203,6 @@ if __name__ == "__main__":
         "config/cloud_storage_service_account_key.json"
     )
 
-    if st.session_state.themes['current_theme'] == 'light':
-        st.logo("assets/logos/app_logo_light.png")
-    else:
-        st.logo("assets/logos/app_logo_dark.png")
-
     if not st.user or not st.user.is_logged_in:
         _, login_col, _ = st.columns([2.82, 3, 2.82], vertical_alignment="top")
 
@@ -2228,9 +2239,9 @@ if __name__ == "__main__":
 
                     if st.button(
                         "Sign in with Google",
-                        icon=":material/account_circle:",
+                        #icon=":material/account_circle:",
                         type="primary",
-                        use_container_width=True,
+                        width='stretch',
                     ):
                         st.login("google")
 
@@ -2244,7 +2255,7 @@ if __name__ == "__main__":
                     if st.button(
                         "Credits and Attribution",
                         type="secondary",
-                        use_container_width=True,
+                        width='stretch',
                     ):
                         dialog_attribution()
 
@@ -2284,25 +2295,37 @@ if __name__ == "__main__":
     ########################## [USER AUTHORIZATION] ###########################
 
     if st.session_state.customer_id:
-        greeting = get_greetings(
-            is_ist=True,
-            session_id=st.session_state.current_session,
-        )
-
-        customer_name = get_customer_details(
-            full_name=True,
-            session_id=st.session_state.current_session,
-        )
-
-        if "customer_appliances" not in st.session_state:
-            query_customer_appliances = QueryCustomerAppliances()
-
-            st.session_state.customer_appliances = (
-                query_customer_appliances.fetch_customer_appliance_data_by_customer_id(
-                    customer_id=st.session_state.customer_id,
-                    limit=-1,
-                )
+        with st.spinner("Loading..."):
+            start_time = time.time() # START TIME
+            greeting = get_greetings(
+                is_ist=True,
+                session_id=st.session_state.current_session,
             )
+
+            customer_name = get_customer_details(
+                full_name=True,
+                session_id=st.session_state.current_session,
+            )
+
+            if "customer_appliances" not in st.session_state:
+                print("... customer_appliances session_state ran")
+                query_customer_appliances = QueryCustomerAppliances()
+
+                st.session_state.customer_appliances = (
+                    query_customer_appliances.fetch_customer_appliance_data_by_customer_id(
+                        customer_id=st.session_state.customer_id,
+                        limit=-1,
+                    )
+                )
+
+            profile_picture_url = fetch_and_cache_profile_picture(
+                st.session_state.current_session, 
+                st.session_state.customer_id
+            )
+
+            end_time = time.time() # END TIME
+            execution_time = end_time - start_time
+            print(f"Execution time: {execution_time:.4f} seconds")
 
         with st.sidebar:
             selected_menu_item = sac.menu(
@@ -2342,35 +2365,12 @@ if __name__ == "__main__":
 
                         with colx:
                             try:
-                                profile_pic_bucket = ProfilePicturesBucket()
-
-                                profile_picture_url = (
-                                    profile_pic_bucket.fetch_profile_picture_url(
-                                        user_type="customers",
-                                        user_id=st.session_state.customer_id,
-                                    )
+                                st.image(
+                                    profile_picture_url,
+                                    width='stretch',
                                 )
-
                             except Exception as error:
-                                if (
-                                    st.session_state.customer_details.get(
-                                        "gender"
-                                    ).lower()
-                                    == "male"
-                                ):
-                                    profile_picture_url = (
-                                        "assets/avatars/customers/male8.png"
-                                    )
-
-                                else:
-                                    profile_picture_url = (
-                                        "assets/avatars/customers/female8.png"
-                                    )
-
-                            st.image(
-                                profile_picture_url,
-                                use_container_width=True,
-                            )
+                                pass
 
                         with coly:
                             st.markdown(
@@ -2387,7 +2387,7 @@ if __name__ == "__main__":
                 if st.button(
                     "Manage Account",
                     icon=":material/manage_accounts:",
-                    use_container_width=True,
+                    width='stretch',
                 ):
                     dialog_manage_account()
 
@@ -2396,7 +2396,7 @@ if __name__ == "__main__":
                     "",
                     icon=":material/logout:",
                     help="Log Out",
-                    use_container_width=True,
+                    width='stretch',
                 ):
                     previous_theme = "dark"
                     tdict = st.session_state.themes["dark"]
@@ -2417,27 +2417,30 @@ if __name__ == "__main__":
 
         if selected_menu_item == "My Dashboard":
             ribbon_col_1, ribbon_col_2, ribbon_col_3, ribbon_col_4 = st.columns(
-                [3.8, 1.4, 0.4, 0.4], vertical_alignment="center"
+                [4.1, 1.2, 0.35, 0.35], 
+                vertical_alignment="center"
             )
 
             with ribbon_col_1:
                 st.markdown(
-                    f"<H4>{greeting}, {str(st.session_state.customer_name.strip().split()[0])}! 👋</H4>",
+                    f"<H4>{greeting}, {str(st.session_state.customer_name.strip())}!</H4>",
                     unsafe_allow_html=True,
                 )
 
             with ribbon_col_2:
                 if st.button(
-                    "Add New Appliance", icon=":material/add:", use_container_width=True
+                    "Add New Appliance", 
+                    icon=":material/add:", 
+                    width='stretch'
                 ):
                     register_new_appliance()
 
             with ribbon_col_3:
                 if st.button(
                     "",
-                    icon=":material/face_2:",
+                    icon=":material/chat:",
                     help="AI Mode",
-                    use_container_width=True,
+                    width='stretch',
                 ):
                     st.switch_page("pages/customer_agent.py")
 
@@ -2451,7 +2454,7 @@ if __name__ == "__main__":
                 st.button(
                     "",
                     icon=btn_face,
-                    use_container_width=True,
+                    width='stretch',
                     type="secondary",
                     help="Switch Theme",
                     on_click=change_streamlit_theme,
@@ -2460,11 +2463,20 @@ if __name__ == "__main__":
             st.write(" ")
             col1, col2, col3, col4 = st.columns(4)
 
-            query_customer_appliances = QueryCustomerAppliances()
+            #query_customer_appliances = QueryCustomerAppliances()
 
-            fetch_and_cache_customer_appliance_details(
-                session_id=st.session_state.current_session
-            )
+            with st.spinner("Setting up your dashboard..."):
+                fetch_and_cache_customer_appliance_details(
+                    session_id=st.session_state.current_session
+                )
+
+                fetch_and_cache_customers_service_requests(
+                    session_id=st.session_state.current_session
+                )
+
+                fetch_and_cache_best_appliances_by_energy_rating(
+                    session_id=st.session_state.current_session
+                )
 
             if len(st.session_state.recent_appliance_serial_numbers) > 0:
                 with col1:
@@ -2485,7 +2497,7 @@ if __name__ == "__main__":
                                     st.session_state.customer_appliance_1_details[
                                         "appliance_image_url"
                                     ],
-                                    use_container_width=True,
+                                    width='stretch',
                                 )
                             except Exception as error:
                                 pass
@@ -2504,7 +2516,7 @@ if __name__ == "__main__":
                             if st.button(
                                 "View Details",
                                 icon=":material/notes:",
-                                use_container_width=True,
+                                width='stretch',
                                 key="_featured_appliance_1",
                             ):
                                 view_customer_appliance_details(
@@ -2538,7 +2550,7 @@ if __name__ == "__main__":
                                     st.session_state.customer_appliance_2_details[
                                         "appliance_image_url"
                                     ],
-                                    use_container_width=True,
+                                    width='stretch',
                                 )
                             except Exception as error:
                                 pass
@@ -2557,7 +2569,7 @@ if __name__ == "__main__":
                             if st.button(
                                 "View Details",
                                 icon=":material/notes:",
-                                use_container_width=True,
+                                width='stretch',
                                 key="_featured_appliance_2",
                             ):
                                 view_customer_appliance_details(
@@ -2583,7 +2595,7 @@ if __name__ == "__main__":
                                     st.session_state.customer_appliance_3_details[
                                         "appliance_image_url"
                                     ],
-                                    use_container_width=True,
+                                    width='stretch',
                                 )
                             except Exception as error:
                                 pass
@@ -2602,7 +2614,7 @@ if __name__ == "__main__":
                             if st.button(
                                 "View Details",
                                 icon=":material/notes:",
-                                use_container_width=True,
+                                width='stretch',
                                 key="_featured_appliance_3",
                             ):
                                 view_customer_appliance_details(
@@ -2628,7 +2640,7 @@ if __name__ == "__main__":
                                     st.session_state.customer_appliance_4_details[
                                         "appliance_image_url"
                                     ],
-                                    use_container_width=True,
+                                    width='stretch',
                                 )
                             except Exception as error:
                                 pass
@@ -2647,16 +2659,14 @@ if __name__ == "__main__":
                             if st.button(
                                 "View Details",
                                 icon=":material/notes:",
-                                use_container_width=True,
+                                width='stretch',
                                 key="_featured_appliance_4",
                             ):
                                 view_customer_appliance_details(
                                     st.session_state.customer_appliance_4_details
                                 )
 
-            fetch_and_cache_customers_service_requests(
-                session_id=st.session_state.current_session
-            )
+            ########################## RECENT TICKETS #########################
 
             if len(st.session_state.customers_service_requests_list) > 0:
                 header1, header2 = st.columns([4.8, 1])
@@ -2678,7 +2688,7 @@ if __name__ == "__main__":
                     if st.button(
                         "Create Request",
                         icon=":material/add:",
-                        use_container_width=True,
+                        width='stretch',
                         type="tertiary",
                     ):
                         create_new_onsite_service_request()
@@ -2711,18 +2721,19 @@ if __name__ == "__main__":
                         }}
                     """,
                 ):
-                    cola, colb, colc = st.columns([0.85, 2.71, 1.5])
+                    cola, colb, colc = st.columns([0.77, 2.72, 1.5])
 
                     with cola:
                         st.image(
                             service_request_details["appliance_details"][
                                 "appliance_image_url"
                             ],
-                            use_container_width=True,
+                            width='stretch',
                         )
 
                     with colb:
                         colx, coly = st.columns([20, 0.01])
+
                         with colx:
                             st.markdown(
                                 f"""
@@ -2740,7 +2751,7 @@ if __name__ == "__main__":
                                 """,
                                 unsafe_allow_html=True,
                             )
-                            st.markdown("<BR>", unsafe_allow_html=True)
+                            st.write(" ")
 
                             st.markdown(
                                 f"""
@@ -2771,33 +2782,33 @@ if __name__ == "__main__":
                             unsafe_allow_html=True,
                         )
 
-                        st.write(" ")
-                        st.write(" ")
-
-                        colx, coly = st.columns([0.9, 3])
+                        #st.write(" ")
+                        st.space(size=2)
+                        colx, coly = st.columns([0.67, 3])
 
                         with colx:
                             if st.button(
                                 "",
                                 icon=":material/edit:",
-                                use_container_width=True,
+                                width='stretch',
                                 help="Edit",
                                 key=f"_recent_service_request_b1{i}",
                             ):
                                 edit_service_request_details(
-                                    service_request_id, service_request_details
+                                    service_request_id, 
+                                    service_request_details
                                 )
 
                         with coly:
                             if st.button(
                                 "View Details",
                                 icon=":material/page_info:",
-                                use_container_width=True,
+                                width='stretch',
                                 key=f"_recent_service_request_details_{i}",
-                                type="primary"
                             ):
                                 view_service_request_details(
-                                    service_request_id, service_request_details
+                                    service_request_id, 
+                                    service_request_details
                                 )
 
             header1, header2 = st.columns([5.75, 1])
@@ -2820,7 +2831,7 @@ if __name__ == "__main__":
                     "View Library",
                     url="https://www.youtube.com/@bensappliancesandjunk",
                     icon=":material/video_library:",
-                    use_container_width=True,
+                    width='stretch',
                     type="tertiary",
                 )
 
@@ -2853,7 +2864,7 @@ if __name__ == "__main__":
                         st.link_button(
                             "Watch on Youtube",
                             url=video_url_1,
-                            use_container_width=True,
+                            width='stretch',
                             icon=":material/smart_display:",
                         )
 
@@ -2884,7 +2895,7 @@ if __name__ == "__main__":
                         st.link_button(
                             "Watch on Youtube",
                             url=video_url_2,
-                            use_container_width=True,
+                            width='stretch',
                             icon=":material/smart_display:",
                         )
 
@@ -2916,7 +2927,7 @@ if __name__ == "__main__":
                         st.link_button(
                             "Watch on Youtube",
                             url=video_url_3,
-                            use_container_width=True,
+                            width='stretch',
                             icon=":material/smart_display:",
                         )
 
@@ -2938,17 +2949,13 @@ if __name__ == "__main__":
                 if st.button(
                     "Explore More",
                     icon=":material/store:",
-                    use_container_width=True,
+                    width='stretch',
                     type="tertiary",
                     key="_explore_marketplace",
                 ):
                     st.toast("Marketplace is currently unavailable")
 
             col1, col2, col3, col4 = st.columns(4)
-
-            fetch_and_cache_best_appliances_by_energy_rating(
-                session_id=st.session_state.current_session
-            )
 
             if st.session_state.best_appliancs_by_energy_rating:
                 appliance_1, appliance_2, appliance_3, appliance_4 = (
@@ -2968,7 +2975,7 @@ if __name__ == "__main__":
                         """,
                     ):
                         with st.container(border=False):
-                            st.image(appliance_2[3], use_container_width=True)
+                            st.image(appliance_2[3], width='stretch')
 
                             appliance_name = (
                                 appliance_2[2]
@@ -2988,7 +2995,7 @@ if __name__ == "__main__":
 
                             if st.button(
                                 "Visit Marketplace",
-                                use_container_width=True,
+                                width='stretch',
                                 icon=":material/store:",
                                 key="_buy_appliance_2",
                             ):
@@ -3007,7 +3014,7 @@ if __name__ == "__main__":
                         """,
                     ):
                         with st.container(border=False):
-                            st.image(appliance_1[3], use_container_width=True)
+                            st.image(appliance_1[3], width='stretch')
 
                             appliance_name = (
                                 appliance_1[2]
@@ -3027,7 +3034,7 @@ if __name__ == "__main__":
 
                             if st.button(
                                 "Visit Marketplace",
-                                use_container_width=True,
+                                width='stretch',
                                 icon=":material/store:",
                                 key="_buy_appliance_1",
                             ):
@@ -3046,7 +3053,7 @@ if __name__ == "__main__":
                         """,
                     ):
                         with st.container(border=False):
-                            st.image(appliance_3[3], use_container_width=True)
+                            st.image(appliance_3[3], width='stretch')
 
                             appliance_name = (
                                 appliance_3[2]
@@ -3065,7 +3072,7 @@ if __name__ == "__main__":
 
                             if st.button(
                                 "Visit Marketplace",
-                                use_container_width=True,
+                                width='stretch',
                                 icon=":material/store:",
                                 key="_buy_appliance_3",
                             ):
@@ -3084,7 +3091,7 @@ if __name__ == "__main__":
                         """,
                     ):
                         with st.container(border=False):
-                            st.image(appliance_4[3], use_container_width=True)
+                            st.image(appliance_4[3], width='stretch')
 
                             appliance_name = (
                                 appliance_4[2]
@@ -3103,7 +3110,7 @@ if __name__ == "__main__":
 
                             if st.button(
                                 "Visit Marketplace",
-                                use_container_width=True,
+                                width='stretch',
                                 icon=":material/store:",
                                 key="_buy_appliance_4",
                             ):
@@ -3114,7 +3121,7 @@ if __name__ == "__main__":
 
         elif selected_menu_item == "My Appliances":
             ribbon_col_1, ribbon_col_2, ribbon_col_3 = st.columns(
-                [4.2, 1.4, 0.4], vertical_alignment="center"
+                [4.45, 1.2, 0.35], vertical_alignment="center"
             )
 
             with ribbon_col_1:
@@ -3127,7 +3134,7 @@ if __name__ == "__main__":
                 if st.button(
                     "Add New Appliance", 
                     icon=":material/add:", 
-                    use_container_width=True
+                    width='stretch'
                 ):
                     create_new_onsite_service_request()
 
@@ -3141,7 +3148,7 @@ if __name__ == "__main__":
                 st.button(
                     "",
                     icon=btn_face,
-                    use_container_width=True,
+                    width='stretch',
                     type="secondary",
                     on_click=change_streamlit_theme,
                 )
@@ -3189,7 +3196,7 @@ if __name__ == "__main__":
                             with st.container(border=False):
                                 st.image(
                                     appliance_details["appliance_image_url"],
-                                    use_container_width=True,
+                                    width='stretch',
                                 )
                                 st.markdown(
                                     f"""
@@ -3206,7 +3213,7 @@ if __name__ == "__main__":
                                 if st.button(
                                     "View Details",
                                     icon=":material/notes:",
-                                    use_container_width=True,
+                                    width='stretch',
                                     key=f"_featured_appliance_{idx}",
                                 ):
                                     view_customer_appliance_details(appliance_details)
@@ -3229,7 +3236,7 @@ if __name__ == "__main__":
                             with st.container(border=False):
                                 st.image(
                                     appliance_details["appliance_image_url"],
-                                    use_container_width=True,
+                                    width='stretch',
                                 )
                                 st.markdown(
                                     f"""
@@ -3246,7 +3253,7 @@ if __name__ == "__main__":
                                 if st.button(
                                     "View Details",
                                     icon=":material/notes:",
-                                    use_container_width=True,
+                                    width='stretch',
                                     key=f"_featured_appliance_{idx}",
                                 ):
                                     view_customer_appliance_details(
@@ -3271,7 +3278,7 @@ if __name__ == "__main__":
                             with st.container(border=False):
                                 st.image(
                                     appliance_details["appliance_image_url"],
-                                    use_container_width=True,
+                                    width='stretch',
                                 )
                                 st.markdown(
                                     f"""
@@ -3288,7 +3295,7 @@ if __name__ == "__main__":
                                 if st.button(
                                     "View Details",
                                     icon=":material/notes:",
-                                    use_container_width=True,
+                                    width='stretch',
                                     key=f"_featured_appliance_{idx}",
                                 ):
                                     view_customer_appliance_details(
@@ -3313,7 +3320,7 @@ if __name__ == "__main__":
                             with st.container(border=False):
                                 st.image(
                                     appliance_details["appliance_image_url"],
-                                    use_container_width=True,
+                                    width='stretch',
                                 )
                                 st.markdown(
                                     f"""
@@ -3329,7 +3336,7 @@ if __name__ == "__main__":
                                 if st.button(
                                     "View Details",
                                     icon=":material/notes:",
-                                    use_container_width=True,
+                                    width='stretch',
                                     key=f"_featured_appliance_{idx}",
                                 ):
                                     view_customer_appliance_details(
@@ -3342,7 +3349,7 @@ if __name__ == "__main__":
 
         elif selected_menu_item == "Service History":
             ribbon_col_1, ribbon_col_2, ribbon_col_3 = st.columns(
-                [4.2, 1.4, 0.4], 
+                [4.45, 1.2, 0.35], 
                 vertical_alignment="center"
             )
 
@@ -3356,7 +3363,7 @@ if __name__ == "__main__":
                 if st.button(
                     "Create New Request",
                     icon=":material/add:",
-                    use_container_width=True,
+                    width='stretch',
                 ):
                     create_new_onsite_service_request()
 
@@ -3370,7 +3377,7 @@ if __name__ == "__main__":
                 st.button(
                     "",
                     icon=btn_face,
-                    use_container_width=True,
+                    width='stretch',
                     type="secondary",
                     on_click=change_streamlit_theme,
                 )
@@ -3404,14 +3411,15 @@ if __name__ == "__main__":
                         }}
                     """,
                 ):
-                    cola, colb, colc = st.columns([0.84, 2.72, 1.5])
+                    #cola, colb, colc = st.columns([0.84, 2.72, 1.5])
+                    cola, colb, colc = st.columns([0.77, 2.72, 1.5])
 
                     with cola:
                         st.image(
                             service_request_details["appliance_details"][
                                 "appliance_image_url"
                             ],
-                            use_container_width=True,
+                            width='stretch',
                         )
 
                     with colb:
@@ -3451,15 +3459,17 @@ if __name__ == "__main__":
                                 service_request_details['ticket_status'].capitalize()}&nbsp</B></font></P>""",
                             unsafe_allow_html=True,
                         )
-                        st.write(" ")
+                        
+                        st.space(size=2)
+                        colx, coly = st.columns([0.67, 3])
 
-                        colx, coly = st.columns([1, 3])
+                        #colx, coly = st.columns([1, 3])
                         with colx:
                             if st.button(
                                 "",
                                 icon=":material/edit:",
                                 help="Edit",
-                                use_container_width=True,
+                                width='stretch',
                                 key=f"_edit_service_request_{i}",
                             ):
                                 edit_service_request_details(
@@ -3470,7 +3480,7 @@ if __name__ == "__main__":
                             if st.button(
                                 "View Details",
                                 icon=":material/page_info:",
-                                use_container_width=True,
+                                width='stretch',
                                 key=f"_recent_service_request_details_{i}",
                             ):
                                 view_service_request_details(
@@ -3632,7 +3642,7 @@ if __name__ == "__main__":
                         if cola.form_submit_button(
                             "Save and Continue",
                             icon=":material/arrow_circle_right:",
-                            use_container_width=True,
+                            width='stretch',
                             type="primary",
                         ):
                             progress_bar = st.progress(
@@ -3741,7 +3751,7 @@ if __name__ == "__main__":
                         if colb.form_submit_button(
                             "",
                             icon=":material/logout:",
-                            use_container_width=True,
+                            width='stretch',
                             help="Log Out",
                         ):
                             st.session_state.clear()
