@@ -162,3 +162,6 @@ test.py
 temp_agent.py
 backups
 *sql_backup.sqlite
+.streamlit/secrets.toml
+todo.txt
+.env
