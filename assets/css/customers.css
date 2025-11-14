@@ -1,3 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
+.h1-chat-welcome-title {
+    padding-top: 0.05rem !important;
+    padding-bottom: 0.05rem !important;
+    background: linear-gradient(45deg, #FF6B6B, #5F27CD);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    font-size: 60px;
+    font-weight: bold;
+    font-family: "Inter", sans-serif !important;
+}
+
+.h1-chat-welcome-subtitle {
+    padding-top: 0.50rem !important;
+    background: linear-gradient(45deg, #444746, #444746);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    font-size: 60px;
+    font-weight: bold;
+    font-family: "Inter", sans-serif !important;
+}
+
 .h1-vsrd-1 {
     padding-top: 0.25rem !important;
     padding-bottom: 1.75rem !important;
