@@ -12,14 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import json
-
 import folium
 import polyline
-import googlemaps
-
 import requests
+import googlemaps
 import streamlit as st
 
 
@@ -50,18 +46,17 @@ class LocationServices:
 
         folium_map = folium.Map(
             location=route_coordinates[int(len(route_coordinates) / 2)],
-            tiles=f"https://mt1.google.com/vt/lyrs=m&x={
-                {x}}&y={
-                    {y}}&z={
-                        {z}}&key={
-                            str(st.secrets[
-                                'GOOGLE_MAPS_DISTANCE_MATRIX_API_KEY'])}",
+            tiles="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=" 
+            + str(st.secrets['GOOGLE_MAPS_DISTANCE_MATRIX_API_KEY']),
             attr='<a href="https://www.google.com/maps/">Google</a>',
             zoom_start=13,
         )
 
         folium.PolyLine(
-            route_coordinates, color="#4285F4", weight=5, opacity=1,
+            route_coordinates, 
+            color="#4285F4", 
+            weight=5, 
+            opacity=1,
         ).add_to(folium_map)
 
         folium_map.fit_bounds([route_coordinates[0], route_coordinates[-1]])
@@ -96,8 +91,6 @@ class LocationServices:
 
     def validate_address(self, address):
         result = self.gmaps.addressvalidation(address)
-        # GRANULARITY_UNSPECIFIED, SUB_PREMISE, PREMISE, PREMISE_PROXIMITY, 
-        # BLOCK, ROUTE
 
         if "result" in result and "verdict" in result["result"]:
             if result["result"]["verdict"]["validationGranularity"] != "OTHER":
