@@ -18,9 +18,6 @@ import uuid
 import warnings
 from dotenv import load_dotenv
 
-import datetime
-from datetime import timedelta
-
 import streamlit as st
 import streamlit_antd_components as sac
 from streamlit_extras.stylable_container import stylable_container
@@ -47,10 +44,26 @@ st.html(
     """
     <style>
         section[data-testid="stSidebar"] {
-            width: 325px !important; # Set the width to your desired value
+            width: 335px !important; # Set the width to your desired value
         }
     </style>
     """
+)
+
+st.html(
+    "<style>[data-testid='stHeaderActionElements'] {display: none;}</style>"
+)
+
+st.markdown(
+    """
+    <style>
+    section[data-testid="stSidebar"] > div:first-child {
+        height: 100vh;
+        overflow: hidden;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
 )
 
 st.markdown(
@@ -91,11 +104,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+############################## [SESSION STATES] ###############################
 
 if "customer_id" not in st.session_state:
     st.session_state.customer_id = None
 
-if "current_session_id" not in st.session_state:
+if "current_session" not in st.session_state:
     st.session_state.current_session = str(uuid.uuid4()).replace("-", "")[:12]
 
 if "customer_name" not in st.session_state:
@@ -164,27 +178,36 @@ if st.session_state.themes["refreshed"] == False:
     st.rerun()
 
 
-@st.cache_data(show_spinner=False, ttl="30 minutes")
-def get_greetings(is_ist, session_id):
-    morning_start = timedelta(hours=5)
-    afternoon_start = timedelta(hours=12)
-    evening_start = timedelta(hours=17)
-    night_start = timedelta(hours=21)
+@st.cache_data(show_spinner=False)
+def fetch_and_cache_profile_picture(session_id, customer_id):
+    print(f"... fetch_and_cache_profile_picture ran [{session_id}]")
+    try:
+        profile_pic_bucket = ProfilePicturesBucket()
 
-    ist_now = datetime.datetime.utcnow() + timedelta(hours=5, minutes=30)
+        profile_picture_url = (
+            profile_pic_bucket.fetch_profile_picture_url(
+                user_type="customers",
+                user_id=customer_id,
+            )
+        )
 
-    current_time = timedelta(hours=ist_now.hour, minutes=ist_now.minute)
+    except Exception as error:
+        if (
+            st.session_state.customer_details.get(
+                "gender"
+            ).lower()
+            == "male"
+        ):
+            profile_picture_url = (
+                "assets/avatars/customers/male8.png"
+            )
 
-    if morning_start <= current_time < afternoon_start:
-        greeting = "Good Morning"
-    elif afternoon_start <= current_time < evening_start:
-        greeting = "Good Afternoon"
-    elif evening_start <= current_time < night_start:
-        greeting = "Good Evening"
-    else:
-        greeting = "Hello"
+        else:
+            profile_picture_url = (
+                "assets/avatars/customers/female8.png"
+            )
 
-    return greeting
+    return profile_picture_url
 
 
 @st.cache_data(show_spinner=False)
@@ -213,32 +236,44 @@ def get_customer_details(full_name, session_id):
     return st.session_state.customer_name
 
 
-adk_logo = "https://google.github.io/adk-docs/assets/agent-development-kit.png"
+AVATAR_AGENT = "assets/avatars/chatbot/agent_logo.png"
 
 
 if __name__ == "__main__":
     if st.session_state.customer_id:
-        if 'messages' not in st.session_state:
-            st.session_state['messages'] = []
-
-            welcome_message = f"""
-            Hi **{str(st.session_state.customer_name.strip().split()[0])}**, 
-            welcome to LogIQ. I'm your AI guide dedicated to making your 
-            appliance ownership seamless and simple. How can I help you 
-            today...?"""
-
-            st.session_state.messages.append(
-                {"role": "assistant", "content": welcome_message}
+        with st.spinner("Setting things up...", show_time=True):
+            customer_name = get_customer_details(
+                full_name=True, 
+                session_id=st.session_state.current_session
             )
 
-        greeting = get_greetings(
-            is_ist=True, session_id=st.session_state.current_session)
-        
-        customer_name = get_customer_details(
-            full_name=True, session_id=st.session_state.current_session)
+            if 'messages' not in st.session_state:
+                st.session_state['messages'] = []
+
+            profile_picture_url = fetch_and_cache_profile_picture(
+                st.session_state.current_session,
+                st.session_state.customer_id,
+            )
 
         with st.sidebar:
-            with st.container(height=493, border=False):
+            selected_menu_item = sac.menu(
+                [
+                    sac.MenuItem(
+                        "LogIQ Support Agent",
+                        icon="robot",
+                        tag=[sac.Tag('AI', color='orange', icon='stars')]
+                    ),
+                    sac.MenuItem(
+                        "AI Settings and Help",
+                        icon="gear",
+                    ),
+                    sac.MenuItem(" ", disabled=True),
+                    sac.MenuItem(type="divider"),
+                ],
+                open_all=True,
+            )
+
+            with st.container(height=416, border=False):
                 with stylable_container(
                     key="sidebar_container_with_border",
                     css_styles=f"""
@@ -258,40 +293,19 @@ if __name__ == "__main__":
                 ):
                     with st.container(border=False):
                         colx, coly = st.columns(
-                            [1, 2.65], vertical_alignment="center", gap='small'
+                            [1, 2.65], 
+                            vertical_alignment="center", 
+                            gap='small'
                         )
 
                         with colx:
                             try:
-                                profile_picture_bucket = ProfilePicturesBucket()
-
-                                profile_picture_url = (
-                                    profile_picture_bucket.fetch_profile_picture_url(
-                                        user_type="customers",
-                                        user_id=st.session_state.customer_id,
-                                    )
+                                st.image(
+                                    profile_picture_url,
+                                    width="stretch",
                                 )
-
                             except Exception as error:
-                                if (
-                                    st.session_state.customer_details.get(
-                                        "gender"
-                                    ).lower()
-                                    == "male"
-                                ):
-                                    profile_picture_url = (
-                                        "assets/avatars/customers/male8.png"
-                                    )
-
-                                else:
-                                    profile_picture_url = (
-                                        "assets/avatars/customers/female8.png"
-                                    )
-
-                            st.image(
-                                profile_picture_url,
-                                use_container_width=True,
-                            )
+                                pass
 
                         with coly:
                             st.markdown(
@@ -302,36 +316,26 @@ if __name__ == "__main__":
                                 unsafe_allow_html=True,
                             )
 
-                st.write("<HR>", unsafe_allow_html=True)
-
-                alert = """LogIQ can make mistakes. 
-                Please double-check responses."""
-
-                sac.alert(
-                    label="You are interacting with an AI",
-                    description=alert,
-                    color='yellow',
-                )
-
             cola, colb = st.columns([4.5, 1])
 
             with cola:
                 if st.button(
                     "Back to Dashboard",
                     icon=":material/arrow_back:",
-                    use_container_width=True,
+                    width="stretch",
                 ):
-                    st.cache_data.clear()
+                    #st.cache_data.clear()  #### WHY?
                     st.switch_page('customer_app.py')
 
             with colb:
                 if st.button(
                     "",
-                    icon=":material/add_notes:",
-                    help="New Session",
-                    use_container_width=True,
+                    icon=":material/edit_square:",
+                    help="New Chat",
+                    width="stretch",
                 ):
                     initialize_adk.clear()
+
                     del st.session_state['messages']
                     del st.session_state['adk_session_id']
 
@@ -339,7 +343,8 @@ if __name__ == "__main__":
 
         try:
             adk_runner, current_session_id = initialize_adk(
-                user_id=st.session_state.customer_id
+                user_id=st.session_state.customer_id,
+                session_id=st.session_state.current_session,
             )
 
         except Exception as e:
@@ -354,10 +359,16 @@ if __name__ == "__main__":
             if message["role"] == "user":
                 avatar_url = profile_picture_url
             else:
-                avatar_url = adk_logo
+                avatar_url = AVATAR_AGENT
 
-            with st.chat_message(message["role"], avatar=avatar_url):
-                st.markdown(message["content"], unsafe_allow_html=False)
+            with st.chat_message(
+                message["role"], 
+                avatar=avatar_url
+            ):
+                st.markdown(
+                    message["content"], 
+                    unsafe_allow_html=False
+                )
 
         if prompt := st.chat_input("Type your question here..."):
             st.session_state['messages'].append(
@@ -367,7 +378,7 @@ if __name__ == "__main__":
             with st.chat_message("user", avatar=profile_picture_url):
                 st.markdown(prompt, unsafe_allow_html=False)
 
-            with st.chat_message("assistant", avatar=adk_logo):
+            with st.chat_message("assistant", avatar=AVATAR_AGENT):
                 message_placeholder = st.empty()
 
                 with st.spinner("Thinking.....", show_time=True):
@@ -384,16 +395,19 @@ if __name__ == "__main__":
                         processing your request. Please try again later."""
 
                 st.session_state.messages.append(
-                    {"role": "assistant", "content": agent_response}
+                    {
+                        "role": "assistant", 
+                        "content": agent_response
+                    }
                 )
 
                 def response_generator(response):
                     for word in response:
-                        time.sleep(0.025)
+                        time.sleep(0.0025)
 
                         try:
                             yield word.text
-                        except Exception as err:
+                        except Exception as error:
                             yield word
 
                 try:
@@ -409,6 +423,51 @@ if __name__ == "__main__":
                     response = st.write_stream(
                         response_generator(fallback_message)
                     )
+
+        if not st.session_state['messages']:
+            st.markdown(
+                f"""
+                <BR><BR><BR><BR><BR>
+                <H1 class='h1-chat-welcome-title'>
+                    Hello, {str(st.session_state.customer_name)}
+                </H1>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            st.markdown(
+                """
+                <H1 class='h1-chat-welcome-subtitle'>
+                    How can I help you today?
+                </H1>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.write(" ")
+
+            welcome_message = f"""
+            Your conversations may be reviewed by human evaluators for the 
+            purpose of improving the overall quality, reliability, and 
+            effectiveness of this product. Please avoid sharing sensitive, 
+            personal, or confidential information that you would not be 
+            comfortable being accessed, or analyzed!
+
+            Learn more here: 
+            github.com/thisisashwinraj/logiq-smart-appliance-management
+            """
+
+            if st.session_state.themes["current_theme"] == "dark":
+                st.info(
+                    welcome_message, 
+                    icon=":material/security:"
+                )
+
+            else:
+                st.warning(
+                    welcome_message, 
+                    icon=":material/security:"
+                )
+
 
     else:
         st.switch_page("customer_app.py")
