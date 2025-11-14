@@ -674,9 +674,9 @@ class QueryEngineers:
         with pool.connect() as db_conn:
             if columns:
                 query = sqlalchemy.text(
-                    f"SELECT {
-                        ', '.join(columns)} FROM engineers WHERE engineer_id = :engineer_id"
+                    f"SELECT {', '.join(columns)} FROM engineers WHERE engineer_id = :engineer_id"
                 )
+
             else:
                 query = sqlalchemy.text(
                     "SELECT * FROM engineers WHERE engineer_id = :engineer_id"
