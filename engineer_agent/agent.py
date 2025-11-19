@@ -35,6 +35,7 @@ from .prompts import (
 from .sub_agents.account_management_agent.agent import account_management_agent
 from .sub_agents.navigation_agent.agent import navigation_agent
 from .sub_agents.ticket_management_agent.agent import ticket_management_agent
+from .sub_agents.troubleshoot_agent.agent import troubleshoot_agent
 
 from .tools import fetch_engineer_details_by_id
 
@@ -49,7 +50,10 @@ def before_agent_callback(
     state = callback_context.state
 
     if "engineer_id" not in state:
-        state["engineer_id"] = st.session.get("engineer_id", "")
+        try:
+            state["engineer_id"] = st.session_state.get("engineer_id", "")
+        except:
+            state["engineer_id"] = "Not Available"
 
     if "engineer_full_name" not in state:
         engineer_details = None
@@ -105,7 +109,8 @@ root_agent = Agent(
     sub_agents=[
         account_management_agent,
         navigation_agent,
-        ticket_management_agent
+        ticket_management_agent,
+        troubleshoot_agent
     ],
     tools=[],
     before_agent_callback=before_agent_callback,

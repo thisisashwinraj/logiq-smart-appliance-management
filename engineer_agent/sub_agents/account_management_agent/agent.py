@@ -54,7 +54,10 @@ def before_agent_callback(
     state = callback_context.state
 
     if "engineer_id" not in state:
-        state["engineer_id"] = st.session.get("engineer_id", "")
+        try:
+            state["engineer_id"] = st.session_state.get("engineer_id", "")
+        except:
+            state["engineer_id"] = "Not Available"
 
     if "engineer_full_name" not in state:
         engineer_details = None

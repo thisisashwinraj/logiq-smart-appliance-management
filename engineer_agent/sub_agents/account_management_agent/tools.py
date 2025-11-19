@@ -16,13 +16,13 @@ import json
 import requests
 import sqlalchemy
 import streamlit as st
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from google.cloud.sql.connector import Connector
 from google.oauth2.service_account import Credentials
 
 
-def add_skills(engineer_id: str, new_skills: list) -> Dict[str, Any]:
+def add_skills(engineer_id: str, new_skills: List[str]) -> Dict[str, Any]:
     """
     Tool to add new skills to ann engineer's profile.
 
@@ -151,7 +151,7 @@ def add_skills(engineer_id: str, new_skills: list) -> Dict[str, Any]:
         }
 
 
-def remove_skills(engineer_id: str, skills_to_remove: list) -> Dict[str, Any]:
+def remove_skills(engineer_id: str, skills_to_remove: List[str]) -> Dict[str, Any]:
     """
     Tool to remove specific skills from an engineer's skill set in the database.
 
@@ -262,7 +262,7 @@ def remove_skills(engineer_id: str, skills_to_remove: list) -> Dict[str, Any]:
 
 def add_specializations(
     engineer_id: str, 
-    new_specializations: list
+    new_specializations: List[str]
 ) -> Dict[str, Any]:
     """
     Tool to add new specializations to an engineer's profile.
@@ -277,7 +277,13 @@ def add_specializations(
         engineer_id (str): Unique identifier of the engineer whose 
             specializations need to be updated.
         new_specializations (list): List of new specializations to add 
-            to the engineer's profile.
+            to the engineer's profile. (These are appliance sub-categories)
+            - Valid options are: "Freestanding Double Oven Gas Range", 
+              "Freestanding Gas Range", "Countertop Commercial Microwave Oven", 
+              "Countertop Domestic Microwave Oven", "Bottom Mount Refrigerator", 
+              "Side-by-Side Refrigerator", "Top Load Washer", "Compact Washer", 
+              "Compact Dryer", and "Electric/Gas Dryer".
+            - e.g., ["Compact Dryer", "Freestanding Gas Range"]
 
     Returns:
         dict: A dictionary containing:
@@ -401,7 +407,7 @@ def add_specializations(
         }
 
 
-def remove_specializations(engineer_id: str, specializations_to_remove: list) -> Dict[str, Any]:
+def remove_specializations(engineer_id: str, specializations_to_remove: List[str]) -> Dict[str, Any]:
     """
     Tool to remove existing specializations from an engineer's profile.
 

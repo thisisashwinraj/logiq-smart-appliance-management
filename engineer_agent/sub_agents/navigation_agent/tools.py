@@ -1,7 +1,37 @@
+import json
 import requests
+import sqlalchemy
 import streamlit as st
 from dotenv import load_dotenv
+
+from google.cloud.sql.connector import Connector
+from google.oauth2.service_account import Credentials
+
 load_dotenv()
+
+
+def _initialize_cloud_sql_mysql_db():
+    credentials = Credentials.from_service_account_info(
+        json.loads(st.secrets["CLOUD_SQL_SERVICE_ACCOUNT_KEY"])
+    )
+
+    connector = Connector(credentials=credentials)
+
+    def __get_connection_to_cloud_sql():
+        return connector.connect(
+            st.secrets["CLOUD_SQL_MYSQL_INSTANCE_CONNECTION_STRING"],
+            st.secrets["CLOUD_SQL_MYSQL_DRIVER"],
+            user=st.secrets["CLOUD_SQL_MYSQL_USER"],
+            password=st.secrets["CLOUD_SQL_PASSWORD"],
+            db=st.secrets["CLOUD_SQL_MYSQL_DB"],
+        )
+
+    pool = sqlalchemy.create_engine(
+        "mysql+pymysql://",
+        creator=__get_connection_to_cloud_sql,
+    )
+
+    return pool
 
 
 def get_directions(origin: str, destination: str) -> dict:
@@ -226,16 +256,15 @@ def get_traffic_eta(origin: str, destination: str) -> dict:
     }
 
 
-def get_engineer_address(engineer_id: str) -> dict:
+def get_customer_address(customer_id: str) -> dict:
     """
-    Tool to retrieve the address details of a field engineer based on their 
-    unique ID.
+    Tool to retrieve the address details of a customer based on their unique ID.
 
-    This tool simulates a lookup in a database or directory to fetch the 
-    address information associated with the provided engineer ID.
+    This tool performs a lookup in the customers database to fetch their address 
+    information associated with the provided customer ID.
 
     Args:
-        engineer_id (str): Unique identifier for the field engineer.
+        customer_id (str): Unique identifier for the field customer.
             - e.g., "ENG12345"
 
     Returns:
@@ -245,11 +274,47 @@ def get_engineer_address(engineer_id: str) -> dict:
 
             On success:
             A dictionary containing:
-                - district (str): District of the engineer's address.
-                - state (str): State of the engineer's address.
-                - zipcode (str): Zipcode of the engineer's address.
+                - street (str): Street address of the customer.
+                - city (str): City of the customer's address.
+                - state (str): State of the customer's address.
+                - zipcode (str): Zipcode of the customer's address.
 
             On not found:
             - message (str): Brief description indicating no data found.
     """
-    pass
+    try:
+        pool = _initialize_cloud_sql_mysql_db()
+
+        with pool.connect() as db_conn:
+            query = sqlalchemy.text(
+                "SELECT street, city, district, state, zip_code "
+                "FROM customers WHERE username = :username"
+            )
+
+            result = db_conn.execute(
+                query, parameters={"username": customer_id}
+            ).fetchone()
+
+        if result is None:
+            return {
+                "status": "error",
+                "message": f"Customer's address not found.",
+            }
+        
+        customer_address = {
+            "street": f"{result.street}, {result.city}",
+            "city": result.district,
+            "state": result.state,
+            "zip_code": result.zip_code,
+        }
+
+        return {
+            "status": "success",
+            "customer_address": customer_address,
+        }
+
+    except Exception as error:
+        return {
+            "status": "error",
+            "message": f"Failed to retrieve customer' email id: {str(error)}",
+        }

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import json
 import sqlalchemy
 import streamlit as st
@@ -20,7 +21,7 @@ from google.cloud.sql.connector import Connector
 from google.oauth2.service_account import Credentials
 
 
-def fetch_engineer_details_by_id(engineer_id):
+def fetch_engineer_details_by_id(engineer_id: str):
     """
     Tool to retrieve complete profile details of a service engineer using their 
     ID.
@@ -41,8 +42,7 @@ def fetch_engineer_details_by_id(engineer_id):
             - last_name (str): Engineer's last name.
             - email (str): Registered email address.
             - phone_number (str): Engineer's contact number.
-            - availability (str): Indicates if the engineer is available or 
-                unavailable.
+            - availability (str): Indicates if the engineer is available or not.
             - active_tickets (int): Count of currently active service tickets.
             - street (str): Street address of the engineer.
             - city (str): City of residence.
@@ -130,7 +130,7 @@ def fetch_engineer_details_by_id(engineer_id):
                 }
 
             except Exception as error:
-                pass
+                logging.error(f"Error parsing engineer details: {error}")
 
             return response
     

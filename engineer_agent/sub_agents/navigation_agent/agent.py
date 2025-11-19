@@ -27,7 +27,12 @@ from .config import NAVIGATION_AGENT_MODEL
 from .config import NAVIGATION_AGENT_MAX_TOKENS, NAVIGATION_AGENT_TEMPERATURE
 from .prompts import NAVIGATION_AGENT_DESCRIPTION, NAVIGATION_AGENT_INSTRUCTION
 
-from .tools import get_directions, get_weather, get_traffic_eta
+from .tools import (
+    get_directions, 
+    get_weather, 
+    get_traffic_eta, 
+    get_customer_address
+)
 from ...tools import fetch_engineer_details_by_id
 
 load_dotenv()
@@ -41,7 +46,10 @@ def before_agent_callback(
     state = callback_context.state
 
     if "engineer_id" not in state:
-        state["engineer_id"] = st.session.get("engineer_id", "")
+        try:
+            state["engineer_id"] = st.session_state.get("engineer_id", "")
+        except:
+            state["engineer_id"] = "Not Available"
 
     if "engineer_full_name" not in state:
         engineer_details = None
@@ -97,7 +105,8 @@ navigation_agent = Agent(
     tools=[
         get_directions,
         get_weather,
-        get_traffic_eta
+        get_traffic_eta,
+        get_customer_address
     ],
     before_agent_callback=before_agent_callback,
 )
