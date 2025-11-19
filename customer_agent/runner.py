@@ -42,7 +42,7 @@ def _run_coroutine_in_new_loop(coro):
 
 
 @st.cache_resource
-def initialize_adk(user_id: str) -> Tuple:
+def initialize_adk(user_id: str, session_id: str) -> Tuple:
     APP_NAME = "LogIQ Customer App"
 
     initial_state = {
@@ -124,11 +124,9 @@ async def run_adk_async(
     user_message_text: str,
 ) -> str:
     content = genai_types.Content(
-        role="user", parts=[genai_types.Part(text=user_message_text)]
+        role="user", 
+        parts=[genai_types.Part(text=user_message_text)]
     )
-
-    final_response_text = """Sorry, an error occurred while processing your 
-    request. Please try again later."""
 
     try:
         async for event in runner.run_async(
@@ -142,11 +140,12 @@ async def run_adk_async(
                 final_response_text = response
             else:
                 final_response_text = """Sorry, an error occurred while 
-                processing your request. Please try again later."""
+                processing your request. Please try again later.  [ERR01 - no
+                response generated]"""
 
-    except Exception as e:
-        final_response_text = """Sorry, an error occurred while processing your 
-        request. Please try again later."""
+    except Exception as error:
+        final_response_text = f"""Sorry, an error occurred while processing your 
+        request. Please try again later.  [ERR02 - agent exception] {error}"""
 
     return final_response_text
 
