@@ -13,9 +13,11 @@
 # limitations under the License.
 
 import folium
+import logging
 import polyline
 import requests
 import googlemaps
+import numpy as np
 import streamlit as st
 
 
@@ -76,12 +78,14 @@ class LocationServices:
 
                 try:
                     city = result["components"]["state_district"]
-                except BaseException:
+                except BaseException as e:
+                    logging.error(f"Error extracting city: {e}")
                     city = None
 
                 try:
                     state = result["components"]["state"]
-                except BaseException:
+                except BaseException as e:
+                    logging.error(f"Error extracting state: {e}")
                     state = None
 
                 return city, state
@@ -168,3 +172,116 @@ class LocationServices:
 
         else:
             return False, element["status"]
+        
+    def _get_distance_matrix(self, addresses):
+        api_key = st.secrets['GOOGLE_MAPS_DISTANCE_MATRIX_API_KEY']
+
+        origins = '|'.join([addr['full_address'] for addr in addresses])
+        destinations = origins
+
+        url = f"https://maps.googleapis.com/maps/api/distancematrix/json?origins={origins}&destinations={destinations}&key={api_key}"
+        
+        response = requests.get(url)
+        data = response.json()
+        
+        matrix = []
+        for row in data['rows']:
+            distances = []
+
+            for element in row['elements']:
+                if element['status'] == 'OK':
+                    distances.append(element['distance']['value'])
+                else:
+                    distances.append(float('inf'))
+
+            matrix.append(distances)
+        
+        return np.array(matrix)
+
+
+    def _held_karp_algorithm(self, distance_matrix, start_idx=0):
+        n = len(distance_matrix)
+        memo = {}
+        
+        def dp(visited, last):
+            if visited == (1 << start_idx):
+                return distance_matrix[last][start_idx], start_idx
+            
+            if (visited, last) in memo:
+                return memo[(visited, last)]
+            
+            min_cost = float('inf')
+            prev_city = -1
+            
+            for city in range(n):
+                if visited & (1 << city) and city != last:
+                    new_visited = visited ^ (1 << last)
+                    cost, _ = dp(new_visited, city)
+
+                    total_cost = cost + distance_matrix[city][last]
+                    
+                    if total_cost < min_cost:
+                        min_cost = total_cost
+                        prev_city = city
+            
+            memo[(visited, last)] = (min_cost, prev_city)
+            return min_cost, prev_city
+        
+        all_visited = (1 << n) - 1
+        min_total = float('inf')
+        last_city = -1
+        
+        for city in range(n):
+            if city != start_idx:
+                cost, _ = dp(all_visited, city)
+
+                if cost < min_total:
+                    min_total = cost
+                    last_city = city
+        
+        route = []
+        visited = all_visited
+        current = last_city
+        
+        while current != -1:
+            route.append(current)
+            _, prev = memo.get((visited, current), (0, -1))
+
+            if prev == -1:
+                break
+            
+            visited ^= (1 << current)
+            current = prev
+
+        route.reverse()
+        return route, min_total
+
+
+    def optimize_route(self, addresses: list[str]):
+        n = len(addresses)
+        
+        if n <= 1:
+            return {
+                "status": "success",
+                "optimized_route": addresses,
+                "distance (in km)": 0
+            }
+        
+        try:
+            distance_matrix = self._get_distance_matrix(addresses)
+            route, distance = self._held_karp_algorithm(distance_matrix)
+
+            optimized_route = [addresses[i] for i in route]
+            return {
+                "status": "success",
+                "optimized_route": optimized_route,
+                "distance (in km)": float(distance / 1000)
+            }
+        
+        except Exception as error:
+            return {
+                "status": "error",
+                "optimized_route": addresses,
+                "distance (in km)": 0
+            }
+
