@@ -15,6 +15,7 @@
 import os
 import time
 import uuid
+import logging
 import warnings
 from dotenv import load_dotenv
 
@@ -28,17 +29,26 @@ from database.cloud_sql.queries import QueryCustomers
 
 
 st.set_page_config(
-    page_title="LogIQ Customers: Support",
+    page_title="LogIQ Customers",
     page_icon="assets/logos/logiq_favicon.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-warnings.filterwarnings("ignore")
+load_dotenv()
+warnings.filterwarnings("ignore", category=UserWarning, module=".*pydantic.*")
+logger = logging.getLogger(__name__)
 
-dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
-load_dotenv(dotenv_path)
+if "GOOGLE_CLOUD_PROJECT" not in os.environ:
+    os.environ["GOOGLE_CLOUD_PROJECT"] = st.secrets["GCP_PROJECT_NAME"]
 
+if "GOOGLE_CLOUD_LOCATION" not in os.environ:
+    os.environ["GOOGLE_CLOUD_LOCATION"] = st.secrets["GCP_PROJECT_LOCATION"]
+
+if "GOOGLE_GENAI_USE_VERTEX_AI" not in os.environ:
+    os.environ["GOOGLE_GENAI_USE_VERTEX_AI"] = 1
+
+################################ [CUSTOM CSS] #################################
 
 st.html(
     """
@@ -180,7 +190,6 @@ if st.session_state.themes["refreshed"] == False:
 
 @st.cache_data(show_spinner=False)
 def fetch_and_cache_profile_picture(session_id, customer_id):
-    print(f"... fetch_and_cache_profile_picture ran [{session_id}]")
     try:
         profile_pic_bucket = ProfilePicturesBucket()
 

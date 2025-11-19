@@ -16,11 +16,13 @@ import os
 import time
 import uuid
 import bleach
+import logging
 import requests
 import warnings
 
 import datetime
 import dateutil
+from dotenv import load_dotenv
 from datetime import date, timedelta
 
 import streamlit as st
@@ -39,24 +41,33 @@ from database.cloud_sql.queries import (
     QueryCustomers,
     QueryEngineers,
 )
-
 from database.cloud_storage.document_storage import CustomerRecordsBucket
 from database.cloud_storage.multimedia_storage import (
     OnsiteServiceRequestsBucket,
     ProfilePicturesBucket,
 )
-
 from database.firebase.firestore import OnsiteServiceRequestCollection
 
 
 st.set_page_config(
-    page_title="LogIQ Customers: Home",
+    page_title="LogIQ Customers",
     page_icon="assets/logos/logiq_favicon.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-warnings.filterwarnings("ignore")
+load_dotenv()
+warnings.filterwarnings("ignore", category=UserWarning, module=".*pydantic.*")
+logger = logging.getLogger(__name__)
+
+if "GOOGLE_CLOUD_PROJECT" not in os.environ:
+    os.environ["GOOGLE_CLOUD_PROJECT"] = st.secrets["GCP_PROJECT_NAME"]
+
+if "GOOGLE_CLOUD_LOCATION" not in os.environ:
+    os.environ["GOOGLE_CLOUD_LOCATION"] = st.secrets["GCP_PROJECT_LOCATION"]
+
+if "GOOGLE_GENAI_USE_VERTEX_AI" not in os.environ:
+    os.environ["GOOGLE_GENAI_USE_VERTEX_AI"] = 1
 
 ################################ [CUSTOM CSS] #################################
 
@@ -249,7 +260,6 @@ if "distinct_appliance_data" not in st.session_state:
 
 @st.cache_data(show_spinner=False)
 def fetch_and_cache_profile_picture(session_id, customer_id):
-    print(f"... fetch_and_cache_profile_picture ran [{session_id}]")
     try:
         profile_pic_bucket = ProfilePicturesBucket()
 
@@ -2090,7 +2100,6 @@ def fetch_and_cache_all_customer_service_requests(session_id):
 
 @st.cache_data(show_spinner=False, ttl="30 minutes")
 def get_greetings(is_ist, session_id):
-    print(f"... get_greetings ran with is_ist: {is_ist} [{session_id}]")
     morning_start = timedelta(hours=5)
     afternoon_start = timedelta(hours=12)
     evening_start = timedelta(hours=17)
@@ -2114,7 +2123,6 @@ def get_greetings(is_ist, session_id):
 
 @st.cache_data(show_spinner=False)
 def get_customer_details(full_name, session_id):
-    print(f"... get_customer_details ran [{session_id}]")
     query_customers = QueryCustomers()
 
     customer_details = query_customers.fetch_customer_details_by_username(
@@ -2308,7 +2316,6 @@ if __name__ == "__main__":
             )
 
             if "customer_appliances" not in st.session_state:
-                print("... customer_appliances session_state ran")
                 query_customer_appliances = QueryCustomerAppliances()
 
                 st.session_state.customer_appliances = (
@@ -2325,7 +2332,6 @@ if __name__ == "__main__":
 
             end_time = time.time() # END TIME
             execution_time = end_time - start_time
-            print(f"Execution time: {execution_time:.4f} seconds")
 
         with st.sidebar:
             selected_menu_item = sac.menu(

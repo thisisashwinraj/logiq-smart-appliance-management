@@ -16,16 +16,16 @@ import os
 import json
 import time
 import uuid
-import base64
 import bleach
 
 import asyncio
+import logging
 import requests
 import warnings
-from google.genai import types
 
 import datetime
 from datetime import timedelta
+from dotenv import load_dotenv
 
 import firebase_admin
 from firebase_admin import credentials
@@ -51,17 +51,28 @@ from database.cloud_storage.multimedia_storage import ProfilePicturesBucket
 
 from database.firebase.firestore import OnsiteServiceRequestCollection
 
-from inference.chatbot import ServiceEngineerChatbot
-
 
 st.set_page_config(
-    page_title="LogIQ: Engineer App",
+    page_title="LogIQ Engineers",
     page_icon="assets/logos/logiq_favicon.png",
     initial_sidebar_state="expanded",
     layout="wide",
 )
 
-warnings.filterwarnings("ignore")
+load_dotenv()
+warnings.filterwarnings("ignore", category=UserWarning, module=".*pydantic.*")
+logger = logging.getLogger(__name__)
+
+if "GOOGLE_CLOUD_PROJECT" not in os.environ:
+    os.environ["GOOGLE_CLOUD_PROJECT"] = st.secrets["GCP_PROJECT_NAME"]
+
+if "GOOGLE_CLOUD_LOCATION" not in os.environ:
+    os.environ["GOOGLE_CLOUD_LOCATION"] = st.secrets["GCP_PROJECT_LOCATION"]
+
+if "GOOGLE_GENAI_USE_VERTEX_AI" not in os.environ:
+    os.environ["GOOGLE_GENAI_USE_VERTEX_AI"] = 1
+
+################################ [CUSTOM CSS] #################################
 
 st.html(
     """
@@ -153,6 +164,23 @@ if "distinct_appliance_details" not in st.session_state:
     except Exception as error:
         pass
 
+@st.cache_data(show_spinner=False)
+def fetch_and_cache_profile_picture(session_id, engineer_id):
+    try:
+        profile_pic_bucket = ProfilePicturesBucket()
+
+        profile_picture_url = (
+            profile_pic_bucket.fetch_profile_picture_url(
+                user_type="engineers",
+                user_id=st.session_state.engineer_id,
+            )
+        )
+
+    except Exception as error:
+        profile_picture_url = "assets/avatars/customers/female8.png"
+
+    return profile_picture_url
+
 
 @st.dialog("Manage Account", width="medium")
 def dialog_manage_account():
@@ -166,6 +194,24 @@ def dialog_manage_account():
     )
 
     if selected_tab == "Personal Details":
+        col1, col2 = st.columns([1, 6], vertical_alignment='center')
+
+        profile_picture_url = fetch_and_cache_profile_picture(
+            st.session_state.session_id,
+            st.session_state.engineer_id
+        )
+
+        col1.image(
+            profile_picture_url,
+            width='stretch',
+        )
+
+        profile_picture = col2.file_uploader(
+            "Profile Picture",
+            type=["png", "jpg"],
+            accept_multiple_files=False,
+        )
+        
         cola, colb = st.columns(2)
         first_name = bleach.clean(
             cola.text_input(
@@ -188,12 +234,6 @@ def dialog_manage_account():
             colb.text_input(
                 "Email Id", value=st.session_state.engineer_details.get("email")
             )
-        )
-
-        profile_picture = st.file_uploader(
-            "Profile Picture",
-            type=["png", "jpg"],
-            accept_multiple_files=False,
         )
 
         cola, colb, _ = st.columns([1.9, 0.35, 2.3])
@@ -1453,23 +1493,6 @@ if __name__ == "__main__":
 
         get_engineer_details(st.session_state.session_id, full_details=False)
 
-        @st.cache_data(show_spinner=False)
-        def fetch_and_cache_profile_picture(session_id, engineer_id):
-            try:
-                profile_pic_bucket = ProfilePicturesBucket()
-
-                profile_picture_url = (
-                    profile_pic_bucket.fetch_profile_picture_url(
-                        user_type="engineers",
-                        user_id=st.session_state.engineer_id,
-                    )
-                )
-
-            except Exception as error:
-                profile_picture_url = "assets/avatars/customers/female8.png"
-
-            return profile_picture_url
-
         profile_picture_url = fetch_and_cache_profile_picture(
             st.session_state.session_id, 
             st.session_state.engineer_id
@@ -1728,9 +1751,13 @@ if __name__ == "__main__":
                     help="Refresh",
                     width='stretch',
                 ):
+                    theme_bkp = st.session_state.themes
+
                     st.session_state.clear()
                     st.cache_data.clear()
                     st.cache_resource.clear()
+
+                    st.session_state.themes = theme_bkp
 
                     st.rerun()
 
@@ -1776,7 +1803,7 @@ if __name__ == "__main__":
                             f"""
                             Engineer Id: {st.session_state.engineer_id} 
                             &nbsp; • &nbsp; 
-                            Rating: {str(float(st.session_state.engineer_details.get('rating')))}
+                            Rating: {str(float(st.session_state.engineer_details.get('rating')))} :material/star_rate:
                             """
                         )
 
@@ -3047,13 +3074,103 @@ if __name__ == "__main__":
                                             )
 
             else:
-                st.markdown("<BR>" * 6, unsafe_allow_html=True)
-                sac.result(
-                    label="Selet a Request ID",
-                    description="Choose a Request ID from the list to proceed with your request",
-                    status="empty",
+                #st.markdown("<BR>"*6, unsafe_allow_html=True)
+                #sac.result(
+                #    label="Selet a Request ID",
+                #    description="Choose a Request ID from the list to proceed with your request",
+                #    status="empty",
+                #)
+
+                @st.cache_data(show_spinner=False)
+                def fetch_and_cache_optimized_route(
+                    session_id, 
+                    onsite_service_requests
+                ):
+                    addresses = []
+
+                    for request in onsite_service_requests:
+                        if request.get("ticket_status").lower() == "open" and request.get("assignment_status").lower() == "confirmed":
+                            street = request.get("address").get("street")
+                            city = request.get("address").get("city")
+                            state = request.get("address").get("state")
+                            zipcode = request.get("address").get("zipcode")
+
+                            full_address = f"{street}, {city}, {state}-{zipcode}"
+                            
+                            request_id = request.get("request_id")
+                            request_title = request.get("request_title")
+
+                            addresses.append(
+                                {
+                                    "request_id": request_id,
+                                    "full_address": full_address,
+                                    "request_title": request_title
+                                }
+                            )
+
+                    location_services = LocationServices()
+                    optimized_route = location_services.optimize_route(addresses)
+
+                    return optimized_route
+
+                optimized_route = fetch_and_cache_optimized_route(
+                    st.session_state.session_id,
+                    st.session_state.onsite_service_requests
                 )
-            
+
+                st.write(" ")
+                st.write(" ")
+                st.markdown("<BR>"*5, unsafe_allow_html=True)
+                #st.write(optimized_route)
+
+                section_1, _, section_2 = st.columns([1.1, 0.1, 0.9], vertical_alignment="center")
+
+                with section_1:
+                    st.markdown("<BR>", unsafe_allow_html=True)
+                    st.markdown(
+                        f"""
+                        <BR>
+                        <H1 class='h1-home-welcome-title'>
+                            Hello, {st.session_state.engineer_details.get("first_name")} {st.session_state.engineer_details.get("last_name")}
+                        </H1>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                    st.markdown(
+                        """
+                        <H2 class='h1-home-welcome-subtitle'>
+                            Select a Request to View Details
+                        </H2><BR>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                with section_2:
+                    st.markdown("<H6>Recommended Resolution Order</H6>", unsafe_allow_html=True)
+
+                    for route in optimized_route.get("optimized_route"):
+                        with st.container(border=False):
+                            with stylable_container(
+                                key=f"_container_route_optimization",
+                                css_styles=f"""
+                                    {{
+                                        background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
+                                        border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                                        border-radius: 0.6rem;
+                                        padding: calc(1em - 1px)
+                                    }}
+                                    """,
+                            ):
+                                colx, coly = st.columns([0.3, 2], vertical_alignment="center")
+
+                                colx.image("assets/app_graphics/location_icon.png")
+                                coly.markdown(f"<P class='p-route-optimization-card'>Request Id: {route.get('request_id')}</P><B>{route.get('request_title')}</B>", unsafe_allow_html=True)
+                                coly.write(" ")
+                        #col1, col2 = st.columns([0.25, 100])
+                        #col2.image("assets/app_graphics/vertical_dots.png", width=5)
+                #st.write(st.session_state.onsite_service_requests)
+
             st.markdown("<BR>", unsafe_allow_html=True)
 
         else:
