@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import warnings
 from typing import Optional
 from datetime import datetime
@@ -20,7 +19,6 @@ from datetime import datetime
 from google.genai import types
 from google.adk.agents import Agent
 from google.adk.agents.callback_context import CallbackContext
-from google.adk.models.lite_llm import LiteLlm
 
 from ...config import (
     MODEL_GEMINI_2_5_FLASH, 

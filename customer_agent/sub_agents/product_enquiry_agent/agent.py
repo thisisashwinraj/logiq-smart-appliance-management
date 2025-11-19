@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import json
 import warnings
 from typing import Optional
 from datetime import datetime
@@ -21,10 +19,9 @@ from datetime import datetime
 from google.genai import types
 from google.adk.agents import Agent
 from google.adk.agents.callback_context import CallbackContext
-from google.adk.models.lite_llm import LiteLlm
 
 from ...config import (
-    MODEL_GEMINI_2_FLASH_LITE, 
+    MODEL_GEMINI_2_5_FLASH, 
     MODEL_MAX_TOKENS, 
     MODEL_TEMPERATURE,
 )
@@ -58,7 +55,7 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
 
 product_enquiry_agent = Agent(
     name="product_enquiry_agent",
-    model=MODEL_GEMINI_2_FLASH_LITE,
+    model=MODEL_GEMINI_2_5_FLASH,
     description="""
     Agent to help customers query the details of various different appliances 
     offered by LogIQ. This agent does not answer queries related to customer 

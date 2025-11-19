@@ -75,6 +75,68 @@ def _initialize_firebase_firestore():
     return firebase_client
 
 
+def fetch_customer_details_by_id(username: str):
+    try:
+        credentials = Credentials.from_service_account_info(
+            json.loads(st.secrets["CLOUD_SQL_SERVICE_ACCOUNT_KEY"])
+        )
+
+        connector = Connector(credentials=credentials)
+
+        pool = sqlalchemy.create_engine(
+            "mysql+pymysql://",
+            creator=lambda: connector.connect(
+                st.secrets["CLOUD_SQL_MYSQL_INSTANCE_CONNECTION_STRING"],
+                st.secrets["CLOUD_SQL_MYSQL_DRIVER"],
+                user=st.secrets["CLOUD_SQL_MYSQL_USER"],
+                password=st.secrets["CLOUD_SQL_PASSWORD"],
+                db=st.secrets["CLOUD_SQL_MYSQL_DB"],
+            ),
+        )
+
+        with pool.connect() as db_conn:
+            query = sqlalchemy.text(
+                "SELECT * FROM customers WHERE username = :username"
+            )
+
+            result = db_conn.execute(
+                query, parameters={"username": username}
+            ).fetchone()
+
+            results_map = {}
+
+            try:
+                results_map = {
+                    "customer_id": result[0],
+                    "first_name": result[1],
+                    "last_name": result[2],
+                    "dob": result[3],
+                    "gender": result[4],
+                    "email": result[5],
+                    "phone_number": result[6],
+                    "profile_picture": result[7],
+                    "street": result[8],
+                    "district": result[9],
+                    "city": result[10],
+                    "state": result[11],
+                    "country": result[12],
+                    "zip_code": result[13],
+                    "created_at": result[14],
+                }
+
+            except Exception as error:
+                pass
+
+            return results_map
+    
+    except Exception as error:
+        return {
+            "status": "error",
+            "message": str(error),
+        }
+
+
+
 def get_categories_tool() -> Dict[str, Any]:
     """
     Retrieves a comprehensive list of available top-level appliance categories

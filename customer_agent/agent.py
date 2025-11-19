@@ -13,38 +13,70 @@
 # limitations under the License.
 
 import os
+import logging
 import warnings
+import streamlit as st
+from typing import Optional
+from datetime import datetime
+from dotenv import load_dotenv
+from google.adk.agents.callback_context import CallbackContext
 
 from google.genai import types
-from google.adk.agents import Agent
+from google.adk.agents import LlmAgent
 from google.adk.models.lite_llm import LiteLlm
 
-from .config import MODEL_DEEPSEEK_V3, MODEL_MAX_TOKENS, MODEL_TEMPERATURE
+from .config import MODEL_GEMINI_2_5_FLASH, MODEL_MAX_TOKENS, MODEL_TEMPERATURE
 from .prompts import ROOT_AGENT_INSTRUCTIONS, GLOBAL_INSTRUCTIONS
 
 from .sub_agents.appliance_support_and_troubleshooting_agent.agent import (
-    appliance_support_and_troubleshooting_agent,
+    appliance_support_and_troubleshooting_agent
 )
 from .sub_agents.customer_appliances_agent.agent import customer_appliances_agent
 from .sub_agents.product_enquiry_agent.agent import product_enquiry_agent
 from .sub_agents.register_appliance_agent.agent import register_appliance_agent
 from .sub_agents.register_onsite_service_request.agent import (
-    register_onsite_service_request_agent,
+    register_onsite_service_request_agent
 )
 from .sub_agents.service_requests_agent.agent import service_requests_agent
 from .sub_agents.update_customer_profile_agent.agent import (
-    update_customer_profile_agent,
+    update_customer_profile_agent
 )
+from .tools.customer_agent_tools import fetch_customer_details_by_id
 
+load_dotenv()
 warnings.filterwarnings("ignore")
 
 
-root_agent = Agent(
+def before_agent_callback(
+    callback_context: CallbackContext
+) -> Optional[types.Content]:
+    state = callback_context.state
+
+    if "customer_id" not in state:
+        state["customer_id"] = st.session_state.get("customer_id", "")
+        print(f"Customer Id: {state['customer_id']}")
+
+    if "customer_full_name" not in state:
+        try:
+            customer_details = fetch_customer_details_by_id(state["customer_id"])
+            state["customer_full_name"] = customer_details.get("first_name", "") + " " + customer_details.get("last_name", "")
+            logging.info(state["customer_full_name"])
+
+        except Exception as error: 
+            logging.error(error)
+
+    if "start_time" not in state:
+        state["start_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if "current_date" not in state:
+        state["current_date"] = datetime.now().strftime("%Y-%m-%d")
+
+    return None
+
+
+root_agent = LlmAgent(
     name="customer_agent",
-    model=LiteLlm(
-        model=MODEL_DEEPSEEK_V3,
-        api_key=os.getenv("OPENROUTER_API_KEY")
-    ),
+    model=MODEL_GEMINI_2_5_FLASH,
     description="""
     Customer service agent for LogIQ - a customer support application for 
     household appliances like refrigerators, gas ranges, microwave ovens etc.
@@ -65,4 +97,5 @@ root_agent = Agent(
         update_customer_profile_agent,
     ],
     global_instruction=GLOBAL_INSTRUCTIONS,
+    before_agent_callback=before_agent_callback,
 )

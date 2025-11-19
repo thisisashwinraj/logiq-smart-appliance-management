@@ -24,9 +24,9 @@ from google.adk.agents.callback_context import CallbackContext
 from google.adk.models.lite_llm import LiteLlm
 
 from ...config import (
+    MODEL_GEMINI_2_5_FLASH, 
     MODEL_MAX_TOKENS, 
-    MODEL_MISTRAL_SMALL_3_2, 
-    MODEL_TEMPERATURE, 
+    MODEL_TEMPERATURE
 )
 from .prompts import CUSTOMER_APPLIANCES_AGENT_INSTRUCTIONS
 
@@ -67,10 +67,7 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
 
 customer_appliances_agent = Agent(
     name="customer_appliances_agent",
-    model=LiteLlm(
-        model=MODEL_MISTRAL_SMALL_3_2,
-        api_key=os.getenv("OPENROUTER_API_KEY")
-    ),
+    model=MODEL_GEMINI_2_5_FLASH,
     description="""
     Agent to help customers query and update details of their registered 
     appliances. This agent can NOT register a new appliances, but can delete an 
