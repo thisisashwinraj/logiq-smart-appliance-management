@@ -148,9 +148,9 @@ async def run_adk_async(
                 """
 
     except Exception as e:
-        final_response_text = """
+        final_response_text = f"""
         [Error Code: 253] Sorry, an error occurred while processing your 
-        request. Please try again later.
+        request. Please try again later. {e}
         """
 
     return final_response_text
