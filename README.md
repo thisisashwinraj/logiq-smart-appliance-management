@@ -6,6 +6,22 @@
 <P align='justify'>This project showcases LogIQ - a fictional home appliance manufacturer that offers an AI-powered application to help customers seamlessly manage their household devices. At the core of the app is a smart assistant—an  AI chatbot that helps users manage their <B>registered appliances</B> <B>raise service requests</B> and look for information about <B>appliance care and maintenance</B>. The chatbot integrates seamlessly with the app allowing users to interact with its features manually through the interface or switch to <B>AI Mode</B> for a guided, chat-based experience. Watch the <B>customer app demo</B> <a href='https://github.com/thisisashwinraj/logiq-smart-appliance-management/tree/main?tab=readme-ov-file#screenshots'>here</a></P>
 
 
+## Engineer App Features
+
+<P align='justify'>The engineer app is built to support on-site service technicians by giving them a clear, organized interface to manage their daily workflow. It simplifies ticket management, service documentation, and safety reporting, ensuring engineers can focus on delivering reliable services. Some of the key features of the engineer application are as described below:</P>
+
+- **Manage Service Requests:** View all assigned tickets, check details, and accept or reject system-assigned requests
+- **Route Preview and Optimization:** Shows the optimal route and order of visit from the engineer’s current location
+- **Manage Ticket Activity:** Add or update notes to ticket activity, to maintain a clear record of all actions performed
+- **Access Service History:** View any past service records to understand issues and resolution before starting the job
+- **Reporting:** Verify onsite visit using customer-generated OTP verification and report any unsafe working condition
+- **Manage Engineer Profile:** Edit & update engineer's personal details, specializations and other profile information
+
+![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/engineer_app/my_dashboard.png)
+![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/engineer_app/dashboard_service_request_details.png)
+![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/engineer_app/view_requests.png)
+
+
 ## Customer App Features
 
 <P align='justify'>The web app is a <B>smart home appliance management platform</B> designed to streamline and enhance how customers interact with their household devices. The app provides a clean, intuitive interface, and several key features that make appliance ownership & support effortless. Some of the key aspects of the customer application are as described here:</P>
