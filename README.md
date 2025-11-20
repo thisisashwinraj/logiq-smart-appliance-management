@@ -8,8 +8,6 @@
 
 ## Engineer App Features
 
-<P align='justify'>The engineer app is built to support on-site service technicians by giving them a clear, organized interface to manage their daily workflow. It simplifies ticket management, service documentation, and safety reporting, ensuring engineers can focus on delivering reliable services. Some of the key features of the engineer application are as described below:</P>
-
 - **Manage Service Requests:** View all assigned tickets, check details, and accept or reject system-assigned requests
 - **Route Preview and Optimization:** Shows the optimal route and order of visit from the engineer’s current location
 - **Manage Ticket Activity:** Add or update notes to ticket activity, to maintain a clear record of all actions performed
@@ -20,6 +18,13 @@
 ![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/engineer_app/my_dashboard.png)
 ![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/engineer_app/dashboard_service_request_details.png)
 ![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/engineer_app/view_requests.png)
+
+### Engineer Agent
+
+- **account_management_agent**: Manages the engineer's profile, specializations, availability, and account workflows
+- **navigation_agent**: Provides real-time route preview, weather updates, and traffic guidance to the service location
+- **ticket_management_agent**: Fetches assigned requests, tracks activity, updates progress and handles past records
+- **troubleshoot_agent**: Assists engineer with troubleshooting guidance, common ticket patterns, repair procedures
 
 
 ## Customer App Features
@@ -36,10 +41,7 @@
 ![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/logiq_home_2.png)
 ![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/logiq_home_3.png)
 
-
-## Customer Agent Features
-
-<P align='justify'><B>LogIQ's customer agent</B> is a <B>multi-agent system</B> designed to streamline home appliance management and customer support. It uses <B>Google Agent Development Kit (ADK)</B> to enable intelligent context-aware interactions across agents.</P>
+### Customer Agent
 
 - **appliance_troubleshooting_agent:** Handles complex appliance issues, and offers usersafe troubleshooting advice
 - **customer_appliances_agent**: Retrieves and summarizes information about all of customer’s registered appliances
@@ -71,12 +73,6 @@
     - **Twilio:** For delivering realtime SMS alert to users about service status updates, and engineer visit notification
     - **Brevo:** Sends automated transactional and notification emails—such as service confirmations, and reminders
 
-<!--
-## Customer Agent Architecture
-<P align='justify'><B>LogIQ</B> primarily integrates <B>Gemini 2.5 Pro</B>, <B>Gemini 2.5 Flash</B>, and <B>Gemini 2.5 Flash Lite</B> for high-performance tasks. It also integrates with <B>open-weight models</B> like <B>Mistral Small 3.2</B>, and <B>DeepSeek-V3</B> for flexible backend orchestration.</P>
-
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/architecture/customer_agent_architecture.png)
--->
 
 ## Data Sources
 
@@ -89,33 +85,20 @@ For implementing **Retrieval-Augmented Generation (RAG)** workflow, publicly ava
 
 ## Screenshots
 
-#### Appliance Registration Agent Flow
+#### Engineer Agent
+
+![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/chat/engineer_agent/chat_homepage.png)
+![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/chat/engineer_agent/pending_tickets_summary_chat.png)
+![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/chat/engineer_agent/ticket_details_chat.png)
+![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/chat/engineer_agent/troubleshoot_chat.png)
+
+#### Customer Agent
 
 ![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/chat_register_appliance_1.png)
-
 ![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/chat_register_appliance_2.png)
-
 ![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/chat_register_appliance_3.png)
-
 ![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/chat_register_appliance_4.png)
-
 ![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/chat_register_appliance_5.png)
-
-<!--
-<HR>
-
-#### 2. Product Enquiry Agent Flow
-
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/chat/product_enquiry/chat_product_enquiry_1.PNG)
-
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/chat/product_enquiry/chat_product_enquiry_2.PNG)
-
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/chat/product_enquiry/chat_product_enquiry_3.PNG)
-
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/chat/product_enquiry/chat_product_enquiry_4.PNG)
-
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/chat/product_enquiry/chat_product_enquiry_5.PNG)
--->
 
 To view examples of multiturn conversations for agents in the customer support agent team check [assets/screenshots](https://github.com/thisisashwinraj/logiq-smart-appliance-management/tree/main/assets/screenshots/chat)
 
