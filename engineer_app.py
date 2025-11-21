@@ -70,7 +70,7 @@ if "GOOGLE_CLOUD_LOCATION" not in os.environ:
     os.environ["GOOGLE_CLOUD_LOCATION"] = st.secrets["GCP_PROJECT_LOCATION"]
 
 if "GOOGLE_GENAI_USE_VERTEX_AI" not in os.environ:
-    os.environ["GOOGLE_GENAI_USE_VERTEX_AI"] = 1
+    os.environ["GOOGLE_GENAI_USE_VERTEX_AI"] = "1"
 
 ################################ [CUSTOM CSS] #################################
 
