@@ -555,7 +555,7 @@ def dialog_manage_account():
 def dialog_display_past_service_request_details(request_details):
     with st.container(border=False):
         with stylable_container(
-            key="_ticket_activity_card",
+            key="_ticket_activity_card_details",
             css_styles=f"""
                 {{
                     background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
@@ -567,6 +567,7 @@ def dialog_display_past_service_request_details(request_details):
         ):
             st.markdown(
                 f"""
+                <H3>Request Details</H3>
                 <P>
                     <B>Request Title:</B>
                     {request_details.get('request_title')}
@@ -583,9 +584,11 @@ def dialog_display_past_service_request_details(request_details):
                 unsafe_allow_html=True,
             )
 
+            st.space(1)
+
     with st.container(border=False):
         with stylable_container(
-            key="_ticket_activity_card",
+            key="_ticket_activity_card_resolution",
             css_styles=f"""
                 {{
                     background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
@@ -607,6 +610,8 @@ def dialog_display_past_service_request_details(request_details):
                 """,
                 unsafe_allow_html=True,
             )
+
+            st.space(1)
             
 
 @st.dialog("Password Reset", width="small")
@@ -847,7 +852,7 @@ def dialog_resolve_service_request(service_request_id, service_request_details):
 def dialog_display_resolution_details(service_request_details):
     with st.container(border=False):
         with stylable_container(
-            key="_internal_sidebar_container_with_border",
+            key="_internal_sidebar_container_with_border_details",
             css_styles=f"""
                 {{
                     background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
@@ -861,14 +866,13 @@ def dialog_display_resolution_details(service_request_details):
                 f"""
                 <H3>
                 {service_request_details.get('request_title')}
-                </H3>
+                </H3><BR>
                 """,
                 unsafe_allow_html=True,
             )
 
             st.markdown(
                 f"""
-                :material/stacks: <B>Description</B><BR>
                 {service_request_details.get('description')}
                 """,
                 unsafe_allow_html=True,
@@ -876,7 +880,7 @@ def dialog_display_resolution_details(service_request_details):
 
         with st.container(border=False):
             with stylable_container(
-                key="_internal_sidebar_container_with_border",
+                key="_internal_sidebar_container_with_border_resolution",
                 css_styles=f"""
                     {{
                         background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
@@ -898,6 +902,7 @@ def dialog_display_resolution_details(service_request_details):
                     """,
                     unsafe_allow_html=True,
                 )
+                st.space(1)
 
 
 @st.dialog("Review Service Request", width="small")
@@ -1220,7 +1225,7 @@ def dialog_view_more_ticket_options(service_request_id, service_request_details)
 
             with cola:
                 with stylable_container(
-                    "button_verify_with_otp",
+                    "button_report_unsafe_working_condition",
                     css_styles="""
                     button {
                         background-color: #3367D6;
@@ -1232,6 +1237,7 @@ def dialog_view_more_ticket_options(service_request_id, service_request_details)
                         "Report to Team", 
                         icon=":material/report:"
                     )
+                    st.space(1)
 
             if button_report_to_team:
                 onsite_service_request_collection = OnsiteServiceRequestCollection()
@@ -1369,7 +1375,7 @@ def display_directions_to_customer_location(
 ):
     with st.container(border=False):
         with stylable_container(
-            key="sidebar_container_with_border",
+            key="sidebar_container_with_border_directions",
             css_styles=f"""
                 {{
                     background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -1381,10 +1387,10 @@ def display_directions_to_customer_location(
         ):
             st.markdown(
                 f"""
-                :material/location_on: **Customer Address:**\n
-                {destination}\n
+                :material/location_on: **Customer Address:**
                 """,
             )
+            st.markdown(destination)
 
             st.markdown(f"""
                 :material/mail: **E-mail Id:** {email_id}
@@ -1401,7 +1407,7 @@ def display_directions_to_customer_location(
 
     with st.container(border=False):
         with stylable_container(
-            key="sidebar_container_with_border",
+            key="sidebar_container_with_border_route_preview",
             css_styles=f"""
                 {{
                     background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -1603,10 +1609,11 @@ if __name__ == "__main__":
                                 key="_announcement_1",
                             ):
                                 st.toast("Announcement currently unavailable")
+                        st.space(1)
 
                 with st.container(border=False):
                     with stylable_container(
-                        key="_internal_sidebar_container_with_border",
+                        key="_internal_info_sidebar_container_with_border",
                         css_styles=f"""
                             {{
                                 background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
@@ -1644,6 +1651,8 @@ if __name__ == "__main__":
                                 key="_announcement_2",
                             ):
                                 st.toast("Announcement currently unavailable")
+
+                        st.space(1)
 
             with st.sidebar:
                 st.write(" ")
@@ -1807,7 +1816,7 @@ if __name__ == "__main__":
                             """
                         )
 
-                        colp, colq = st.columns([1, 1], vertical_alignment="center")
+                        colp, colq = st.columns([1, 1], vertical_alignment="top")
 
                         with colp:
                             with stylable_container(
@@ -1845,6 +1854,8 @@ if __name__ == "__main__":
                         )
 
                     if button_engineer_availability:
+                        st.space(1)
+
                         with st.spinner(
                             "Updating availability status...", 
                             show_time=True
@@ -1882,6 +1893,8 @@ if __name__ == "__main__":
 
                         st.rerun()
 
+                    st.space(1)
+
             with sidebar_container:
                 if st.session_state.engineer_details.get("availability") != 1:
                     sac.alert(
@@ -1911,6 +1924,7 @@ if __name__ == "__main__":
                         pending_ticket_icon, 
                         width='stretch'
                     )
+                    st.space(1)
 
                     st.markdown(
                         "<P class=\"p-metrics-card-text\">Assigned Tickets</P>", 
@@ -1945,6 +1959,7 @@ if __name__ == "__main__":
                         resolved_ticket_icon, 
                         width='stretch'
                     )
+                    st.space(1)
 
                     st.markdown(
                         "<P class=\"p-metrics-card-text\">Resolved Tickets</P>", 
@@ -1958,8 +1973,6 @@ if __name__ == "__main__":
                         """, 
                         unsafe_allow_html=True
                     )
-
-            st.write(" ")
 
             with st.container(border=False):
                 tab_request_assignment_status = sac.tabs(
@@ -2137,6 +2150,8 @@ if __name__ == "__main__":
                                             service_request.get("request_id"),
                                             service_request,
                                         )
+                                        
+                                st.space(1)
 
                     if assigned_count == 0:
                         st.markdown("<BR>" * 4, unsafe_allow_html=True)
@@ -2158,7 +2173,7 @@ if __name__ == "__main__":
                             new_count += 1
 
                             with stylable_container(
-                                key=f"container_with_border_{new_count}",
+                                key=f"_container_with_border_new_{new_count}",
                                 css_styles=f"""
                                     {{
                                         background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -2251,6 +2266,7 @@ if __name__ == "__main__":
                                                 service_request,
                                                 is_approved=False,
                                             )
+                                st.space(1)
 
                     if new_count == 0:
                         st.markdown("<BR>" * 4, unsafe_allow_html=True)
@@ -2361,6 +2377,8 @@ if __name__ == "__main__":
                                             dialog_display_resolution_details(
                                                 service_request
                                             )
+                                
+                                st.space(1)
 
                     if resolved_count == 0:
                         st.markdown("<BR>" * 4, unsafe_allow_html=True)
@@ -2509,6 +2527,8 @@ if __name__ == "__main__":
                                         type="secondary"
                                     )
 
+                                st.space(1)
+
                 else:
                     st.markdown("<BR><BR>", unsafe_allow_html=True)
 
@@ -2563,7 +2583,7 @@ if __name__ == "__main__":
                             """,
                     ):
                         with st.container(border=False):
-                            cola, colb = st.columns([0.7, 4])
+                            cola, colb = st.columns([0.7, 4], vertical_alignment="center")
 
                             with cola:
                                 st.image(
@@ -2613,7 +2633,7 @@ if __name__ == "__main__":
                                 with colb:
                                     colx, coly, colz = st.columns(
                                         [1.1, 2.75, 2.72], 
-                                        vertical_alignment="center"
+                                        vertical_alignment="top"
                                     )
 
                                     with colx:
@@ -2697,13 +2717,14 @@ if __name__ == "__main__":
                                                 open_service_requests.get(request_id_to_view),
                                             )
 
+                            st.space(1)
 
                 colp, colq = st.columns([2.15, 1])
 
                 with colp:
                     with st.container(border=False):
                         with stylable_container(
-                            key="sidebar_container_with_border",
+                            key="sidebar_container_with_border_desc",
                             css_styles=f"""
                                 {{
                                     background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -2736,10 +2757,12 @@ if __name__ == "__main__":
                                     unsafe_allow_html=True,
                                 )
 
+                            st.space(1)
+
                 with colq:
                     with st.container(border=False):
                         with stylable_container(
-                            key="sidebar_container_with_border",
+                            key="sidebar_container_with_border_contact_card",
                             css_styles=f"""
                                 {{
                                     background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -2780,9 +2803,11 @@ if __name__ == "__main__":
                                     unsafe_allow_html=True,
                                 )
 
+                            st.space(1)
+
                 with colp.container(border=False, height=475):
                     with stylable_container(
-                        key="_sidebar_container_with_border",
+                        key="_sidebar_container_with_border_activity_card",
                         css_styles=f"""
                             {{
                                 background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -2878,6 +2903,8 @@ if __name__ == "__main__":
                                             time.sleep(3)
                                             alert.empty()
 
+                                    st.space(1)
+
                             ticket_activity = fetch_and_cache_ticket_activity(
                                 st.session_state.session_id,
                                 open_service_requests.get(request_id_to_view).get(
@@ -2889,7 +2916,7 @@ if __name__ == "__main__":
                             for activity in ticket_activity:
                                 with st.container(border=False):
                                     with stylable_container(
-                                        key="_ticket_activity_card",
+                                        key=f"_ticket_detailed_activity_card_{activity.get('timestamp')}",
                                         css_styles=f"""
                                             {{
                                                 background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
@@ -2925,10 +2952,13 @@ if __name__ == "__main__":
                                                 unsafe_allow_html=True
                                             )
                                             st.markdown(activity.get("notes"))
+                                        
+                                        st.space(1)
+                            st.space(1)
 
                 with colq.container(border=False):
                     with stylable_container(
-                        key="sidebar_container_with_border",
+                        key="sidebar_container_with_border_past_ticket_details",
                         css_styles=f"""
                             {{
                                 background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -2944,6 +2974,7 @@ if __name__ == "__main__":
                             """,
                             unsafe_allow_html=True,
                         )
+                        st.write(" ")
 
                         @st.cache_data(show_spinner=False)
                         def fetch_and_cache_appliance_service_request_history(
@@ -3002,7 +3033,7 @@ if __name__ == "__main__":
                                 )
 
                                 with stylable_container(
-                                    "button_post_update",
+                                    "button_post_update_search_by_id",
                                     css_styles="""
                                     button {
                                         background-color: #3367D6;
@@ -3016,6 +3047,8 @@ if __name__ == "__main__":
                                         width='stretch',
                                         key="_view_service_history_request_button"
                                     )
+
+                                st.space(1)
 
                                 if button_view_details:
                                     dialog_display_past_service_request_details(
@@ -3031,7 +3064,7 @@ if __name__ == "__main__":
 
                                 with st.container(border=False):
                                     with stylable_container(
-                                        key="_ticket_activity_card",
+                                        key=f"_ticket_activity_card_{request_id}",
                                         css_styles=f"""
                                             {{
                                                 background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
@@ -3051,6 +3084,7 @@ if __name__ == "__main__":
                                             f"Request Id: {request_id}",
                                             unsafe_allow_html=True
                                         )
+                                        st.write(" ")
 
                                         st.markdown(
                                             f"""<B>
@@ -3074,13 +3108,6 @@ if __name__ == "__main__":
                                             )
 
             else:
-                #st.markdown("<BR>"*6, unsafe_allow_html=True)
-                #sac.result(
-                #    label="Selet a Request ID",
-                #    description="Choose a Request ID from the list to proceed with your request",
-                #    status="empty",
-                #)
-
                 @st.cache_data(show_spinner=False)
                 def fetch_and_cache_optimized_route(
                     session_id, 
@@ -3152,7 +3179,7 @@ if __name__ == "__main__":
                     for route in optimized_route.get("optimized_route"):
                         with st.container(border=False):
                             with stylable_container(
-                                key=f"_container_route_optimization",
+                                key=f"_container_route_optimization_{route.get('request_id')}",
                                 css_styles=f"""
                                     {{
                                         background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -3167,9 +3194,7 @@ if __name__ == "__main__":
                                 colx.image("assets/app_graphics/location_icon.png")
                                 coly.markdown(f"<P class='p-route-optimization-card'>Request Id: {route.get('request_id')}</P><B>{route.get('request_title')}</B>", unsafe_allow_html=True)
                                 coly.write(" ")
-                        #col1, col2 = st.columns([0.25, 100])
-                        #col2.image("assets/app_graphics/vertical_dots.png", width=5)
-                #st.write(st.session_state.onsite_service_requests)
+                                st.space(1)
 
             st.markdown("<BR>", unsafe_allow_html=True)
 

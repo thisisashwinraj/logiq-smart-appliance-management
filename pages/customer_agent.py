@@ -325,6 +325,8 @@ if __name__ == "__main__":
                                 unsafe_allow_html=True,
                             )
 
+                        st.space(1)
+
             cola, colb = st.columns([4.5, 1])
 
             with cola:

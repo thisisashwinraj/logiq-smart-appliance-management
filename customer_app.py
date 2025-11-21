@@ -918,6 +918,8 @@ def register_new_appliance():
             accept_multiple_files=False,
         )
 
+        st.space(1)
+
         if st.button(
             "Register Appliance",
             type="primary",
@@ -1144,7 +1146,7 @@ def view_customer_appliance_details(appliance_details):
                     appliance_details['warranty_expiration']}",
             unsafe_allow_html=True,
         )
-        st.markdown("", unsafe_allow_html=True)
+        #st.markdown("", unsafe_allow_html=True)
 
         colx, coly = st.columns(2)
         customer_records_bucket = CustomerRecordsBucket()
@@ -2386,6 +2388,8 @@ if __name__ == "__main__":
                                 """,
                                 unsafe_allow_html=True,
                             )
+                        
+                        st.space(1)
 
             cola, colb = st.columns([4.5, 1])
 
@@ -2529,6 +2533,8 @@ if __name__ == "__main__":
                                     st.session_state.customer_appliance_1_details
                                 )
 
+                            st.space(1)
+
             else:
                 sac.alert(
                     label="No Appliances Added!",
@@ -2582,6 +2588,8 @@ if __name__ == "__main__":
                                     st.session_state.customer_appliance_2_details
                                 )
 
+                            st.space(1)
+
             if len(st.session_state.recent_appliance_serial_numbers) > 2:
                 with col3:
                     with stylable_container(
@@ -2626,6 +2634,8 @@ if __name__ == "__main__":
                                 view_customer_appliance_details(
                                     st.session_state.customer_appliance_3_details
                                 )
+
+                            st.space(1)
 
             if len(st.session_state.recent_appliance_serial_numbers) > 3:
                 with col4:
@@ -2672,6 +2682,8 @@ if __name__ == "__main__":
                                     st.session_state.customer_appliance_4_details
                                 )
 
+                            st.space(1)
+
             ########################## RECENT TICKETS #########################
 
             if len(st.session_state.customers_service_requests_list) > 0:
@@ -2717,7 +2729,7 @@ if __name__ == "__main__":
                 )
 
                 with stylable_container(
-                    key=f"container_with_border_{i}",
+                    key=f"_container_with_border_{i}",
                     css_styles=f"""
                         {{
                             background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -2817,6 +2829,8 @@ if __name__ == "__main__":
                                     service_request_details
                                 )
 
+                    st.space(1)
+
             header1, header2 = st.columns([5.75, 1])
 
             with header1:
@@ -2874,6 +2888,8 @@ if __name__ == "__main__":
                             icon=":material/smart_display:",
                         )
 
+                        st.space(1)
+
             with col2:
                 with stylable_container(
                     key="video_container_with_border_2",
@@ -2904,6 +2920,8 @@ if __name__ == "__main__":
                             width='stretch',
                             icon=":material/smart_display:",
                         )
+
+                        st.space(1)
 
             with col3:
                 with stylable_container(
@@ -2936,6 +2954,8 @@ if __name__ == "__main__":
                             width='stretch',
                             icon=":material/smart_display:",
                         )
+
+                        st.space(1)
 
             header1, header2 = st.columns([5.75, 1])
 
@@ -3006,6 +3026,8 @@ if __name__ == "__main__":
                                 key="_buy_appliance_2",
                             ):
                                 st.toast("Marketplace is currently unavailable")
+                            
+                            st.space(1)
 
                 with col2:
                     with stylable_container(
@@ -3046,6 +3068,8 @@ if __name__ == "__main__":
                             ):
                                 st.toast("Marketplace is currently unavailable")
 
+                            st.space(1)
+
                 with col3:
                     with stylable_container(
                         key="featured_container_with_border_3",
@@ -3084,6 +3108,8 @@ if __name__ == "__main__":
                             ):
                                 st.toast("Marketplace is currently unavailable")
 
+                            st.space(1)
+
                 with col4:
                     with stylable_container(
                         key="featured_container_with_border_4",
@@ -3121,6 +3147,8 @@ if __name__ == "__main__":
                                 key="_buy_appliance_4",
                             ):
                                 st.toast("Marketplace is currently unavailable")
+                            
+                            st.space(1)
 
             st.write(" ")
             st.write(" ")
@@ -3189,7 +3217,7 @@ if __name__ == "__main__":
                 if idx % 4 == 0:
                     with col1:
                         with stylable_container(
-                            key="appliance_container_with_border_1",
+                            key=f"_appliance_container_with_border_1_{idx}",
                             css_styles=f"""
                                 {{
                                     background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -3224,12 +3252,14 @@ if __name__ == "__main__":
                                 ):
                                     view_customer_appliance_details(appliance_details)
 
+                                st.space(1)
+
                         st.write(" ")
 
                 elif idx % 4 == 1:
                     with col2:
                         with stylable_container(
-                            key="appliance_container_with_border_2",
+                            key=f"_appliance_container_with_border_2_{idx}",
                             css_styles=f"""
                                 {{
                                     background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -3265,13 +3295,15 @@ if __name__ == "__main__":
                                     view_customer_appliance_details(
                                         appliance_details
                                     )
+
+                                st.space(1)
 
                         st.write(" ")
 
                 elif idx % 4 == 2:
                     with col3:
                         with stylable_container(
-                            key="appliance_container_with_border_3",
+                            key=f"_appliance_container_with_border_3_{idx}",
                             css_styles=f"""
                                 {{
                                     background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -3308,12 +3340,14 @@ if __name__ == "__main__":
                                         appliance_details
                                     )
 
+                                st.space(1)
+
                         st.write(" ")
 
                 elif idx % 4 == 3:
                     with col4:
                         with stylable_container(
-                            key="appliance_container_with_border_4",
+                            key=f"_appliance_container_with_border_4_{idx}",
                             css_styles=f"""
                                 {{
                                     background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -3348,6 +3382,8 @@ if __name__ == "__main__":
                                     view_customer_appliance_details(
                                         appliance_details
                                     )
+
+                                st.space(1)
 
                         st.write(" ")
 
@@ -3493,6 +3529,7 @@ if __name__ == "__main__":
                                     service_request_id, service_request_details
                                 )
 
+                    st.space(1)
             st.write(" ")
 
     ########################### [USER REGISTRATION] ###########################
