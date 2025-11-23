@@ -69,8 +69,6 @@ if "GOOGLE_CLOUD_LOCATION" not in os.environ:
 if "GOOGLE_GENAI_USE_VERTEX_AI" not in os.environ:
     os.environ["GOOGLE_GENAI_USE_VERTEX_AI"] = "1"
 
-################################ [CUSTOM CSS] #################################
-
 #st.html(
 #    """
 #    <style>
@@ -134,7 +132,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-############################## [SESSION STATES] ###############################
 
 if "customer_id" not in st.session_state:
     st.session_state.customer_id = None
@@ -256,7 +253,6 @@ if "distinct_appliance_data" not in st.session_state:
     except Exception as error:
         st.session_state.distinct_appliance_data = {}
 
-############################ [STREAMLIT CACHES] ###############################
 
 @st.cache_data(show_spinner=False)
 def fetch_and_cache_profile_picture(session_id, customer_id):
@@ -299,8 +295,6 @@ def fetch_and_cache_customer_appliance_serials(session_id):
         )
     )
 
-
-############################ [STREAMLIT DIALOGS] ##############################
 
 @st.dialog("Manage Account", width="medium")
 def dialog_manage_account():
@@ -983,7 +977,6 @@ def register_new_appliance():
                 )
 
                 try:
-                    # Upload Invoice to blob
                     uploaded_purchase_invoice_to_bucket = (
                         customer_records_bucket.upload_purchase_invoice(
                             customer_id=st.session_state.customer_id,
@@ -1003,7 +996,6 @@ def register_new_appliance():
                     flag_appliance_registration_status = False
 
                 try:
-                    # Upload Warranty to blob
                     uploaded_warranty_certificate_to_bucket = (
                         customer_records_bucket.upload_warranty_certificate(
                             customer_id=st.session_state.customer_id,
@@ -1022,7 +1014,6 @@ def register_new_appliance():
                     uploaded_warranty_certificate_to_bucket = False
                     flag_appliance_registration_status = False
 
-                # Store data in cloud sql
                 if (
                     uploaded_purchase_invoice_to_bucket
                     and uploaded_warranty_certificate_to_bucket
@@ -1097,7 +1088,6 @@ def register_new_appliance():
                     del st.session_state.ra_available_appliance_brands
                     del st.session_state.ra_available_appliance_model_numbers
 
-                    # Display status to users
                     success_status = st.success(
                         "Congratulations! Your appliance has been registered.",
                         icon=":material/check:",
@@ -1146,7 +1136,6 @@ def view_customer_appliance_details(appliance_details):
                     appliance_details['warranty_expiration']}",
             unsafe_allow_html=True,
         )
-        #st.markdown("", unsafe_allow_html=True)
 
         colx, coly = st.columns(2)
         customer_records_bucket = CustomerRecordsBucket()
@@ -1970,7 +1959,6 @@ def edit_service_request_details(service_request_id, service_request_details):
             time.sleep(3)
             st.rerun()
 
-############################# [CACHED FUNCTIONS] ##############################
 
 @st.cache_data(show_spinner=False)
 def fetch_and_cache_customer_appliance_details(session_id):
@@ -2148,7 +2136,6 @@ def get_customer_details(full_name, session_id):
 
     return st.session_state.customer_name
 
-################################# [THEMEING] ##################################
 
 if "themes" not in st.session_state:
     st.session_state.themes = {
@@ -2201,12 +2188,10 @@ def change_streamlit_theme():
     elif previous_theme == "light":
         st.session_state.themes["current_theme"] = "dark"
 
-
 if st.session_state.themes["refreshed"] == False:
     st.session_state.themes["refreshed"] = True
     st.rerun()
 
-################################# [APP LOGIC] #################################
 
 if __name__ == "__main__":
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = (
@@ -2215,8 +2200,6 @@ if __name__ == "__main__":
 
     if not st.user or not st.user.is_logged_in:
         _, login_col, _ = st.columns([2.82, 3, 2.82], vertical_alignment="top")
-
-        ########################### [LANDING PAGE] ############################
 
         with login_col:
             st.markdown("<BR>", unsafe_allow_html=True)
@@ -2249,7 +2232,6 @@ if __name__ == "__main__":
 
                     if st.button(
                         "Sign in with Google",
-                        #icon=":material/account_circle:",
                         type="primary",
                         width='stretch',
                     ):
@@ -2272,8 +2254,6 @@ if __name__ == "__main__":
                     st.markdown(" ", unsafe_allow_html=True)
 
         st.stop()
-
-    ########################### [ON AUTHENTICATION] ###########################
 
     auth_exception_flag = False
 
@@ -2302,11 +2282,8 @@ if __name__ == "__main__":
     if auth_exception_flag:
         fetch_and_cache_username_by_customer_email.clear()
 
-    ########################## [USER AUTHORIZATION] ###########################
-
     if st.session_state.customer_id:
         with st.spinner("Loading..."):
-            start_time = time.time() # START TIME
             greeting = get_greetings(
                 is_ist=True,
                 session_id=st.session_state.current_session,
@@ -2331,9 +2308,6 @@ if __name__ == "__main__":
                 st.session_state.current_session, 
                 st.session_state.customer_id
             )
-
-            end_time = time.time() # END TIME
-            execution_time = end_time - start_time
 
         with st.sidebar:
             selected_menu_item = sac.menu(
@@ -2472,8 +2446,6 @@ if __name__ == "__main__":
 
             st.write(" ")
             col1, col2, col3, col4 = st.columns(4)
-
-            #query_customer_appliances = QueryCustomerAppliances()
 
             with st.spinner("Setting up your dashboard..."):
                 fetch_and_cache_customer_appliance_details(
@@ -2684,8 +2656,6 @@ if __name__ == "__main__":
 
                             st.space(1)
 
-            ########################## RECENT TICKETS #########################
-
             if len(st.session_state.customers_service_requests_list) > 0:
                 header1, header2 = st.columns([4.8, 1])
 
@@ -2800,7 +2770,6 @@ if __name__ == "__main__":
                             unsafe_allow_html=True,
                         )
 
-                        #st.write(" ")
                         st.space(size=2)
                         colx, coly = st.columns([0.67, 3])
 
@@ -3453,7 +3422,6 @@ if __name__ == "__main__":
                         }}
                     """,
                 ):
-                    #cola, colb, colc = st.columns([0.84, 2.72, 1.5])
                     cola, colb, colc = st.columns([0.77, 2.72, 1.5])
 
                     with cola:
@@ -3505,7 +3473,6 @@ if __name__ == "__main__":
                         st.space(size=2)
                         colx, coly = st.columns([0.67, 3])
 
-                        #colx, coly = st.columns([1, 3])
                         with colx:
                             if st.button(
                                 "",
@@ -3531,8 +3498,6 @@ if __name__ == "__main__":
 
                     st.space(1)
             st.write(" ")
-
-    ########################### [USER REGISTRATION] ###########################
 
     else:
         colp, colq, colr = st.columns([1, 8, 1], vertical_alignment="top")
