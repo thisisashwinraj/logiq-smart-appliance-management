@@ -6,7 +6,6 @@
 <P align='justify'>This project showcases LogIQ, a smart home appliance management tool that offers an AI-powered ecosystem for customers and service engineers to manage household appliances and service bookings. The engineer application is designed to support field technicians with ticket management, navigation assistance, and AI-guided troubleshooting. Alongside this, the customer facing app enables users to manage their registered appliances, raise service requests, and access information about appliance care and maintenance. Users can interact with both the applications through the UI or they can switch to <B>AI Mode</B> for a guided, chat-based experience. Watch the complete LogIQ app demo <a href='https://github.com/thisisashwinraj/logiq-smart-appliance-management/tree/main?tab=readme-ov-file#screenshots'>here</a></P>
 
 
-
 ## Engineer App Features
 
 - **Manage Service Requests:** View all assigned tickets, check details, and accept or reject system-assigned requests
@@ -16,9 +15,9 @@
 - **Reporting:** Verify onsite visit using customer-generated OTP verification and report any unsafe working condition
 - **Manage Engineer Profile:** Edit & update engineer's personal details, specializations and other profile information
 
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/engineer_app/my_dashboard.png)
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/engineer_app/dashboard_service_request_details.png)
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/engineer_app/view_requests.png)
+![](assets/screenshots/engineer_app/my_dashboard.png)
+![](assets/screenshots/engineer_app/dashboard_service_request_details.png)
+![](assets/screenshots/engineer_app/view_requests.png)
 
 ### Engineer Agent
 
@@ -38,9 +37,9 @@
 - **View Appliances Details:** Access centralized view of all registered appliances with warranty, specs, & support info
 - **View Service Requests Status:** Track ongoing and past service requests, including live status and engineer details
 
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/logiq_home_1.png)
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/logiq_home_2.png)
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/logiq_home_3.png)
+![](assets/readme_assets/dashboard_1.png)
+![](assets/readme_assets/dashboard_2.png)
+![](assets/readme_assets/dashboard_3.png)
 
 ### Customer Agent
 
@@ -61,15 +60,23 @@
     - **RAG Engine:** Supports various AI Agents by retrieving relevant answers from the corpus of support manuals
     - **Document AI Layout Parser:** Extracts structured content such as tables from manuals to build a RAG corpus
 
-2. **Cloud Infrastructure on GCP**
+2. **Cloud Databases on GCP**
     - **Cloud SQL:** Stores structured data about appliances, customers, registered appliances, and engineer records
     - **Cloud Storage:** Stores graphics, invoices, warranty docs, manuals and attachments linked to service requests
     - **Firestore:** Manages realtime data for service requests, and stores appliance specifications in a NoSQL format
+
+![](assets/screenshots/gcp/cloud_sql_for_mysql.png)
+![](assets/screenshots/gcp/cloud_storage.png)
+![](assets/screenshots/gcp/firestore_appliance_specifications.png)
+
+3. **Backend Infrastructure on GCP**
     - **Cloud Run:** Hosts the backend services responsible for automatically assigning engineers to service requests
     - **Google Auth Platform:** Provides secure user authentication and session management, using Google Oauth2
     - **Google Maps SDK:** Address auto-complete, validation, geocoding, and distance-based engineer assignment
 
-3. **Frontend and Communication Services**
+![](assets/screenshots/gcp/cloud_run.png)
+
+4. **Frontend and Communication**
     - **Streamlit:** Python-based frontend with support for custom components, & CSS to enhance the user interface
     - **Twilio:** For delivering realtime SMS alert to users about service status updates, and engineer visit notification
     - **Brevo:** Sends automated transactional and notification emails—such as service confirmations, and reminders
@@ -81,35 +88,38 @@ The appliance dataset used in this project is **entirely synthetic** and was gen
 
 To visually represent these products within the application, corresponding images were generated using **Imagen 4 on Vertex AI Studio**. These images were generated to closely match the appliance specifications created in the metadata.
 
-For implementing **Retrieval-Augmented Generation (RAG)** workflow, publicly available service manuals were sourced and preprocessed. A service manual was linked to each sub-category to demonstrate **grounded** response generation. These documents were parsed using the Google Cloud **Document AI Layout Parser**, and the content was indexed in a **RagManaged Vector Store** to enable the RAG engine to generate contextual responses for appliance troubleshooting
+## Retrieval-Augmented Generation (RAG) Workflows
+
+For implementing **Retrieval-Augmented Generation (RAG)** workflow, publicly available service manuals were sourced and preprocessed. A service manual was linked to each sub-category to demonstrate **grounded** response generation. 
+
+#### For Customer Agent: 
+Service Manuals were parsed using Google Cloud **DocumentAI Layout Parser** and the parsed corpus was indexed in a **RagManaged Vector Store** to enable the RAG engine to generate contextual responses for appliance troubleshooting
+
+![](assets/screenshots/gcp/rag_engine_service_manuals_corpus.png)
+![](assets/screenshots/gcp/rag_engine_product_page.png)
+
+#### For Engineer Agent:
+**File Search tool** is used for enabling RAG workflow. The File Search tool imports, chunks, and indexes service manual data into **File Search Stores**, enabling fast retrieval of relevant information at runtime. All responses include **citations**.
 
 
-## Screenshots
+## Sample Interactions
 
 #### Engineer Agent
 
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/chat/engineer_agent/chat_homepage.png)
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/chat/engineer_agent/pending_tickets_summary_chat.png)
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/chat/engineer_agent/ticket_details_chat.png)
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/screenshots/chat/engineer_agent/troubleshoot_chat.png)
+![](assets/screenshots/chat/engineer_agent/chat_homepage.png)
+![](assets/screenshots/chat/engineer_agent/pending_tickets_summary_chat.png)
+![](assets/screenshots/chat/engineer_agent/ticket_details_chat.png)
+![](assets/screenshots/chat/engineer_agent/troubleshoot_chat.png)
 
 #### Customer Agent
 
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/chat_register_appliance_1.png)
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/chat_register_appliance_2.png)
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/chat_register_appliance_3.png)
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/chat_register_appliance_4.png)
-![](https://github.com/thisisashwinraj/logiq-smart-appliance-management/blob/main/assets/readme_assets/chat_register_appliance_5.png)
+![](assets/readme_assets/logiq_support.png)
+![](assets/readme_assets/product_enquiry_1.png)
+![](assets/readme_assets/product_enquiry_2.png)
+![](assets/readme_assets/product_enquiry_3.png)
+![](assets/readme_assets/product_enquiry_4.png)
 
 To view examples of multiturn conversations for agents in the customer support agent team check [assets/screenshots](https://github.com/thisisashwinraj/logiq-smart-appliance-management/tree/main/assets/screenshots/chat)
-
-
-## Finding and Learnings
-
-1. **Agentic AI enables task decomposition:** Breaking down responsibilities across multiple agents improved lucidity, maintainability and reusability of logic across user tasks while allowing agents to attend to a single task at hand
-2. **Context management is key in multi-turn interactions:** Maintaining session state & context across different user intents was essential to avoid redundant questions & to ensure fluid conversations between the user & the agent
-3. **RAG enhances response accuracy:** Integrating the RAG Engine pipeline grounded in service manuals significantly improved the relevance, factual grounding, and trustworthiness of the responses from the troubleshooting agent
-4. **Tool/function calling is essential for dynamic interactions:** Using Gemini 2.5 Pro’s ability to invoke tools enabled real-time execution of tasks like fetching appliance data, updating customer profile, and logging service requests
 
 
 ## Support and Feedback
