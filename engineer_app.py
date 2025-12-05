@@ -1277,7 +1277,7 @@ def dialog_view_service_request_details(
 ):
     with st.container(border=False):
         with stylable_container(
-            key="sidebar_container_with_border",
+            key="_sidebar_container_with_border_ticket_snapshot",
             css_styles=f"""
                 {{
                     background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -1303,7 +1303,7 @@ def dialog_view_service_request_details(
                     </H2>
                     {service_request_details.get('appliance_details').get('brand')}
                     {service_request_details.get('appliance_details').get('sub_category')}
-                    &nbsp;• &nbsp;Model Number:
+                    &nbsp;• &nbsp;Model:
                     {service_request_details.get('appliance_details').get('model_number')}
                     """,
                     unsafe_allow_html=True,
@@ -1347,9 +1347,11 @@ def dialog_view_service_request_details(
                         unsafe_allow_html=True,
                     )
 
+            st.space(1)
+
     with st.container(border=False):
         with stylable_container(
-            key="sidebar_container_with_border",
+            key="_sidebar_container_with_border_ticket_details",
             css_styles=f"""
                 {{
                     background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["containerColor"]};
@@ -1367,6 +1369,7 @@ def dialog_view_service_request_details(
                 """,
                 unsafe_allow_html=True,
             )
+            st.space(1)
 
 
 @st.dialog("Route Preview", width='medium')
@@ -1419,9 +1422,10 @@ def display_directions_to_customer_location(
         ):
             try:
                 st.markdown(
-                    f":material/directions: **Route Preview:**", 
+                    f":material/directions: **Route Preview:**<BR>", 
                     unsafe_allow_html=True
                 )
+
                 folium_static(map_obj)
             
             except Exception as error:
@@ -1512,10 +1516,6 @@ if __name__ == "__main__":
                         icon="grid",
                     ),
                     sac.MenuItem(
-                        "View Requests",
-                        icon="inboxes",
-                    ),
-                    sac.MenuItem(
                         "LogIQ Chatbot",
                         icon="chat-square-text",
                     ),
@@ -1528,7 +1528,7 @@ if __name__ == "__main__":
                 ]["alertColor"],
             )
 
-            sidebar_container = st.container(height=333, border=False)
+            sidebar_container = st.container(height=376, border=False)
 
         if selected_menu_item == "My Dashboard":
             onsite_service_request_collection = OnsiteServiceRequestCollection()
