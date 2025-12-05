@@ -33,6 +33,8 @@ from backend.utils.geo_operations import LocationServices
 from backend.channels.email_client import TransactionalEmails
 from backend.channels.sms_client import NotificationSMS
 
+from customer_agent.runner import initialize_adk, run_adk_sync
+
 from database.cloud_sql.migrations import MigrateCustomers
 from database.cloud_sql.models import ModelCustomers, ModelCustomerAppliances
 from database.cloud_sql.queries import (
@@ -68,16 +70,6 @@ if "GOOGLE_CLOUD_LOCATION" not in os.environ:
 
 if "GOOGLE_GENAI_USE_VERTEX_AI" not in os.environ:
     os.environ["GOOGLE_GENAI_USE_VERTEX_AI"] = "1"
-
-#st.html(
-#    """
-#    <style>
-#        section[data-testid="stSidebar"] {
-#            width: 335px !important; # Set the width to your desired value
-#        }
-#    </style>
-#    """
-#)
 
 st.html(
     "<style>[data-testid='stHeaderActionElements'] {display: none;}</style>"
@@ -526,9 +518,15 @@ def dialog_manage_account():
                 return district, state, country
 
         if zip_code != st.session_state.customer_details.get("zip_code"):
-            district, state, country = fetch_district_and_state_from_zipcode(
-                zip_code
-            )
+            try:
+                district, state, country = fetch_district_and_state_from_zipcode(
+                    zip_code
+                )
+
+            except Exception as error:
+                district = st.session_state.customer_details.get("district")
+                state = st.session_state.customer_details.get("state")
+                country = st.session_state.customer_details.get("country")
 
         else:
             district = st.session_state.customer_details.get("district")
@@ -539,7 +537,6 @@ def dialog_manage_account():
             colb.text_input(
                 "District",
                 value=district,
-                disabled=True,
             )
         )
 
@@ -547,7 +544,6 @@ def dialog_manage_account():
             colc.text_input(
                 "State",
                 value=state,
-                disabled=True,
             )
         )
 
@@ -555,7 +551,6 @@ def dialog_manage_account():
             cold.text_input(
                 "Country",
                 value=country,
-                disabled=True,
             )
         )
 
@@ -2310,62 +2305,76 @@ if __name__ == "__main__":
             )
 
         with st.sidebar:
-            selected_menu_item = sac.menu(
-                [
-                    sac.MenuItem(
-                        "My Dashboard",
-                        icon="grid",
-                    ),
-                    sac.MenuItem(
-                        "My Appliances",
-                        icon="layers",
-                    ),
-                    sac.MenuItem(
-                        "Service History",
-                        icon="inboxes",
-                    ),
-                    sac.MenuItem(" ", disabled=True),
-                    sac.MenuItem(type="divider"),
-                ],
-                open_all=True,
-            )
-
             with st.container(height=375, border=False):
+                selected_menu_item = sac.menu(
+                    [
+                        sac.MenuItem(
+                            "My Dashboard",
+                            icon="grid",
+                        ),
+                        sac.MenuItem(
+                            "Product Center",
+                            icon="layers",
+                            children=[
+                                sac.MenuItem(
+                                    "My Appliances",
+                                    icon="layers",
+                                ),
+                                sac.MenuItem(
+                                    "Service History",
+                                    icon="inboxes",
+                                ),
+                            ],
+                        ),
+                        sac.MenuItem(
+                            "LogIQ Support",
+                            icon="chat-left-text",
+                        ),
+                        sac.MenuItem(" ", disabled=True),
+                        sac.MenuItem(type="divider"),
+                    ],
+                    open_all=True,
+                )
+
                 with stylable_container(
                     key="sidebar_container_with_border",
                     css_styles=f"""
                         {{
                             background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
-                            border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
-                            border-radius: 0.6rem;
-                            padding: calc(1em - 1px)
-                        }}
-                        """,
-                ):
-                    with st.container(border=False):
-                        colx, coly = st.columns([1, 2.65], vertical_alignment="center")
+                                border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                                border-radius: 0.6rem;
+                                padding: calc(1em - 1px)
+                            }}
+                            """,
+                    ):
+                        with st.container(border=False):
+                            colx, coly = st.columns([1, 2.65], vertical_alignment="center")
 
-                        with colx:
-                            try:
-                                st.image(
-                                    profile_picture_url,
-                                    width='stretch',
+                            with colx:
+                                try:
+                                    st.image(
+                                        profile_picture_url,
+                                        width='stretch',
+                                    )
+                                except Exception as error:
+                                    pass
+
+                            with coly:
+                                st.markdown(
+                                    f"""
+                                    <B>{str(st.session_state.customer_name)}</B><BR>
+                                    Username: {st.session_state.customer_id}
+                                    """,
+                                    unsafe_allow_html=True,
                                 )
-                            except Exception as error:
-                                pass
+                            
+                            st.space(1)
 
-                        with coly:
-                            st.markdown(
-                                f"""
-                                <B>{str(st.session_state.customer_name)}</B><BR>
-                                Username: {st.session_state.customer_id}
-                                """,
-                                unsafe_allow_html=True,
-                            )
-                        
-                        st.space(1)
+            st.space(155)
 
-            cola, colb = st.columns([4.5, 1])
+        if selected_menu_item == "My Dashboard":
+            with st.sidebar:
+                cola, colb = st.columns([4.5, 1])
 
             with cola:
                 if st.button(
@@ -2399,7 +2408,6 @@ if __name__ == "__main__":
                     st.logout()
                     st.stop()
 
-        if selected_menu_item == "My Dashboard":
             ribbon_col_1, ribbon_col_2, ribbon_col_3, ribbon_col_4 = st.columns(
                 [4.1, 1.2, 0.35, 0.35], 
                 vertical_alignment="center"
@@ -2422,11 +2430,18 @@ if __name__ == "__main__":
             with ribbon_col_3:
                 if st.button(
                     "",
-                    icon=":material/chat:",
-                    help="AI Mode",
+                    icon=":material/refresh:",
+                    help="Refresh",
                     width='stretch',
                 ):
-                    st.switch_page("pages/customer_agent.py")
+                    theme_bkp = st.session_state.themes
+
+                    st.session_state.clear()
+                    st.cache_data.clear()
+                    st.cache_resource.clear()
+
+                    st.session_state.themes = theme_bkp
+                    st.rerun()
 
             with ribbon_col_4:
                 btn_face = (
@@ -2771,7 +2786,7 @@ if __name__ == "__main__":
                         )
 
                         st.space(size=2)
-                        colx, coly = st.columns([0.67, 3])
+                        colx, coly, colz = st.columns([0.67, 0.67, 2.33])
 
                         with colx:
                             if st.button(
@@ -2788,10 +2803,23 @@ if __name__ == "__main__":
 
                         with coly:
                             if st.button(
+                                "",
+                                icon=":material/contract_delete:",
+                                width='stretch',
+                                help="Delete",
+                                key=f"_recent_service_request_delete_b1{i}",
+                            ):
+                                st.toast("Deleting a ticket is not supported right now.")
+                                time.sleep(2)
+                                st.toast("Please contact support for assistance.")
+
+                        with colz:
+                            if st.button(
                                 "View Details",
                                 icon=":material/page_info:",
                                 width='stretch',
                                 key=f"_recent_service_request_details_{i}",
+                                type="primary"
                             ):
                                 view_service_request_details(
                                     service_request_id, 
@@ -3123,13 +3151,48 @@ if __name__ == "__main__":
             st.write(" ")
 
         elif selected_menu_item == "My Appliances":
+            with st.sidebar:
+                cola, colb = st.columns([4.5, 1])
+
+            with cola:
+                if st.button(
+                    "Manage Account",
+                    icon=":material/manage_accounts:",
+                    width='stretch',
+                ):
+                    dialog_manage_account()
+
+            with colb:
+                if st.button(
+                    "",
+                    icon=":material/logout:",
+                    help="Log Out",
+                    width='stretch',
+                ):
+                    previous_theme = "dark"
+                    tdict = st.session_state.themes["dark"]
+
+                    for vkey, vval in tdict.items():
+                        if vkey.startswith("theme"):
+                            st._config.set_option(vkey, vval)
+
+                    st.session_state.themes["refreshed"] = False
+                    st.session_state.themes["current_theme"] = "light"
+
+                    st.session_state.clear()
+                    st.cache_data.clear()
+                    st.cache_resource.clear()
+
+                    st.logout()
+                    st.stop()
+
             ribbon_col_1, ribbon_col_2, ribbon_col_3 = st.columns(
                 [4.45, 1.2, 0.35], vertical_alignment="center"
             )
 
             with ribbon_col_1:
                 st.markdown(
-                    f"<H4>{greeting}, {str(st.session_state.customer_name)}! 👋</H4>",
+                    f"<H4>{greeting}, {str(st.session_state.customer_name)}!</H4>",
                     unsafe_allow_html=True,
                 )
 
@@ -3359,6 +3422,41 @@ if __name__ == "__main__":
             st.write(" ")
 
         elif selected_menu_item == "Service History":
+            with st.sidebar:
+                cola, colb = st.columns([4.5, 1])
+
+            with cola:
+                if st.button(
+                    "Manage Account",
+                    icon=":material/manage_accounts:",
+                    width='stretch',
+                ):
+                    dialog_manage_account()
+
+            with colb:
+                if st.button(
+                    "",
+                    icon=":material/logout:",
+                    help="Log Out",
+                    width='stretch',
+                ):
+                    previous_theme = "dark"
+                    tdict = st.session_state.themes["dark"]
+
+                    for vkey, vval in tdict.items():
+                        if vkey.startswith("theme"):
+                            st._config.set_option(vkey, vval)
+
+                    st.session_state.themes["refreshed"] = False
+                    st.session_state.themes["current_theme"] = "light"
+
+                    st.session_state.clear()
+                    st.cache_data.clear()
+                    st.cache_resource.clear()
+
+                    st.logout()
+                    st.stop()
+
             ribbon_col_1, ribbon_col_2, ribbon_col_3 = st.columns(
                 [4.45, 1.2, 0.35], 
                 vertical_alignment="center"
@@ -3366,7 +3464,7 @@ if __name__ == "__main__":
 
             with ribbon_col_1:
                 st.markdown(
-                    f"<H4>{greeting}, {str(st.session_state.customer_name)}! 👋</H4>",
+                    f"<H4>{greeting}, {str(st.session_state.customer_name)}!</H4>",
                     unsafe_allow_html=True,
                 )
 
@@ -3499,12 +3597,201 @@ if __name__ == "__main__":
                     st.space(1)
             st.write(" ")
 
+        elif selected_menu_item == "LogIQ Support":
+            AVATAR_AGENT = "assets/avatars/chatbot/agent_logo.png"
+
+            if st.session_state.customer_id:
+                with st.spinner("Setting things up...", show_time=True):
+                    customer_name = get_customer_details(
+                        full_name=True, 
+                        session_id=st.session_state.current_session
+                    )
+
+            if 'messages' not in st.session_state:
+                st.session_state['messages'] = []
+
+            profile_picture_url = fetch_and_cache_profile_picture(
+                st.session_state.current_session,
+                st.session_state.customer_id,
+            )
+
+            with st.sidebar:
+                cola, colb = st.columns([4.5, 1])
+
+            with colb:
+                if st.button(
+                    "",
+                    icon=":material/logout:",
+                    help="Log Out",
+                    width='stretch',
+                ):
+                    previous_theme = "dark"
+                    tdict = st.session_state.themes["dark"]
+
+                    for vkey, vval in tdict.items():
+                        if vkey.startswith("theme"):
+                            st._config.set_option(vkey, vval)
+
+                    st.session_state.themes["refreshed"] = False
+                    st.session_state.themes["current_theme"] = "light"
+
+                    st.session_state.clear()
+                    st.cache_data.clear()
+                    st.cache_resource.clear()
+
+                    st.logout()
+                    st.stop()
+
+            with cola:
+                if st.button(
+                    "New Chat",
+                    icon=":material/edit_square:",
+                    help="New Chat",
+                    width="stretch",
+                ):
+                    initialize_adk.clear()
+
+                    del st.session_state['messages']
+                    del st.session_state['adk_session_id']
+
+                    st.rerun()
+
+            try:
+                adk_runner, current_session_id = initialize_adk(
+                    user_id=st.session_state.customer_id,
+                    session_id=st.session_state.current_session,
+                )
+
+            except Exception as error:
+                st.error(f"""
+                    **Fatal Error:** Could not initialize the ADK Runner or 
+                    Session Service: {error}""", 
+                    icon=":material/cancel:"
+                )
+
+                st.stop()
+
+            for message in st.session_state['messages']:
+                if message["role"] == "user":
+                    avatar_url = profile_picture_url
+                else:
+                    avatar_url = AVATAR_AGENT
+
+                with st.chat_message(
+                    message["role"], 
+                    avatar=avatar_url
+                ):
+                    st.markdown(
+                        message["content"], 
+                        unsafe_allow_html=False
+                    )
+
+            if prompt := st.chat_input("Type your question here..."):
+                st.session_state['messages'].append(
+                    {
+                        "role": "user", 
+                        "content": prompt
+                    }
+                )
+
+                with st.chat_message("user", avatar=profile_picture_url):
+                    st.markdown(prompt, unsafe_allow_html=False)
+
+                with st.chat_message("assistant", avatar=AVATAR_AGENT):
+                    message_placeholder = st.empty()
+
+                    with st.spinner("Thinking.....", show_time=True):
+                        try:
+                            agent_response = run_adk_sync(
+                                st.session_state.customer_id, 
+                                adk_runner, 
+                                current_session_id, 
+                                prompt
+                            )
+
+                        except Exception as error:
+                            agent_response = """Sorry, an error occurred while 
+                            processing your request. Please try again later."""
+
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant", 
+                            "content": agent_response
+                        }
+                    )
+
+                    def response_generator(response):
+                        for word in response:
+                            time.sleep(0.0025)
+
+                            try:
+                                yield word.text
+                            except Exception as error:
+                                yield word
+
+                    try:
+                        response = st.write_stream(
+                            response_generator(agent_response)
+                        )
+
+                    except Exception as err:
+                        fallback_message = (
+                            f"Sorry, I am unable to answer this."
+                        )
+
+                        response = st.write_stream(
+                            response_generator(fallback_message)
+                        )
+
+            if not st.session_state['messages']:
+                st.markdown(
+                    f"""
+                    <BR><BR><BR><BR><BR>
+                    <H1 class='h1-chat-welcome-title'>
+                        Hello, {str(st.session_state.customer_name)}
+                    </H1>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+                st.markdown(
+                    """
+                    <H1 class='h1-chat-welcome-subtitle'>
+                        How can I help you today?
+                    </H1>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                st.write(" ")
+
+                welcome_message = f"""
+                Your conversations may be reviewed by human evaluators for the 
+                purpose of improving the overall quality, reliability, and 
+                effectiveness of this product. Please avoid sharing sensitive, 
+                personal, or confidential information that you would not be 
+                comfortable being accessed, or analyzed!
+
+                Learn more here: 
+                github.com/thisisashwinraj/logiq-smart-appliance-management
+                """
+
+                if st.session_state.themes["current_theme"] == "dark":
+                    st.info(
+                        welcome_message, 
+                        icon=":material/security:"
+                    )
+
+                else:
+                    st.warning(
+                        welcome_message, 
+                        icon=":material/security:"
+                    )
+
     else:
         colp, colq, colr = st.columns([1, 8, 1], vertical_alignment="top")
 
         with colp:
             colx, coly = st.columns([1, 2.5])
-
         with colq:
             st.markdown(" ", unsafe_allow_html=True)
 
