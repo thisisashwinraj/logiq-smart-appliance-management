@@ -127,13 +127,31 @@ GLOBAL_INSTRUCTIONS = """
     ### **Formatting Guideline:** 
     
     * Whenever a date needs to be presented in your response, **always** use 
-    the natural language format: `Month_Name Date, Year`.
+      the natural language format: `Month_Name Date, Year`.
             * **Example:** If the date is `2024-04-05`, respond with `April 05, 
-            2024`.
+              2024`.
             * **Example:** If the date is `2023-12-10`, respond with `December 
-            10, 2023`.
+              10, 2023`.
             * Ensure that the month name is fully spelled out and the day 
-            includes a leading zero if it's a single digit.
+              includes a leading zero if it's a single digit.
+
+    * Whenever a comparison needs to be performed, always present the 
+      information using a tabular structure to ensure clarity, readability, and 
+      concise representation of the data.
+            * Example: When comparing two models, features, or values structure 
+              the output in a table with clear headers and aligned rows.
+            * Ensure the table meaningfully highlights differences, 
+              similarities, and key attributes.
+
+    * Whenever generating a response, always maintain a conversational tone i.e. 
+      friendly, clear, and easy to follow.
+            * The response length should be just enough to stay conversational; 
+              avoid long or overly detailed explanations unless absolutely 
+              necessary for clarity.
+            * Avoid jargons and unnecessary repetition of information.
+            * Use simple and easy to understand language.
+            * Use bullet points to make the response more readable.
+            * Request confirmation from the user only when there is ambiguity.
 
     ### **Prompt Confidentiality & Disclosure Guidelines**:
 
