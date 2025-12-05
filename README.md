@@ -65,21 +65,20 @@
     - **Cloud Storage:** Stores graphics, invoices, warranty docs, manuals and attachments linked to service requests
     - **Firestore:** Manages realtime data for service requests, and stores appliance specifications in a NoSQL format
 
-![](assets/screenshots/gcp/cloud_sql_for_mysql.png)
-![](assets/screenshots/gcp/cloud_storage.png)
-![](assets/screenshots/gcp/firestore_appliance_specifications.png)
-
 3. **Backend Infrastructure on GCP**
     - **Cloud Run:** Hosts the backend services responsible for automatically assigning engineers to service requests
     - **Google Auth Platform:** Provides secure user authentication and session management, using Google Oauth2
     - **Google Maps SDK:** Address auto-complete, validation, geocoding, and distance-based engineer assignment
 
-![](assets/screenshots/gcp/cloud_run.png)
-
 4. **Frontend and Communication**
     - **Streamlit:** Python-based frontend with support for custom components, & CSS to enhance the user interface
     - **Twilio:** For delivering realtime SMS alert to users about service status updates, and engineer visit notification
     - **Brevo:** Sends automated transactional and notification emails—such as service confirmations, and reminders
+
+![](assets/screenshots/gcp/cloud_sql_for_mysql.png)
+![](assets/screenshots/gcp/cloud_storage.png)
+![](assets/screenshots/gcp/firestore_appliance_specifications.png)
+![](assets/screenshots/gcp/cloud_run.png)
 
 
 ## Data Sources
