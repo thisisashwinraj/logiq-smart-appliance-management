@@ -3,10 +3,14 @@
 
 <P align='justify'>Managing home appliances often involves juggling manuals, service calls and scattered records — a highly frustrating experience for many homeowners. With the rise of <B>Agentic AI</B> design framework, there's an opportunity to streamline and improve this process aptly through <B>intelligent systems</B> that can understand, guide, and act on behalf of the users</P>
 
-<P align='justify'>This project showcases LogIQ, a smart home appliance management tool that offers an AI-powered ecosystem for customers and service engineers to manage household appliances and service bookings. The engineer application is designed to support field technicians with ticket management, navigation assistance, and AI-guided troubleshooting. Alongside this, the customer facing app enables users to manage their registered appliances, raise service requests, and access information about appliance care and maintenance. Users can interact with both the applications through the UI or they can switch to <B>AI Mode</B> for a guided, chat-based experience. Watch the complete LogIQ app demo <a href='https://github.com/thisisashwinraj/logiq-smart-appliance-management/tree/main?tab=readme-ov-file#screenshots'>here</a></P>
+<P align='justify'>This project showcases LogIQ, a smart home appliance management tool that offers an AI-powered ecosystem for customers and service engineers to manage household appliances and service bookings. The engineer application is designed to support field technicians with ticket management, navigation assistance, and AI-guided troubleshooting. Alongside this, the customer facing app enables users to manage their registered appliances, raise service requests, and access information about appliance care and maintenance. Users can interact with both the applications through the UI or they can switch to <B>AI Mode</B> for a guided, chat-based experience. Watch the complete LogIQ app demo <a href='https://github.com/thisisashwinraj/logiq-smart-appliance-management?tab=readme-ov-file#sample-interactions'>here</a></P>
 
 
-## Engineer App Features
+## Key Features
+
+<P align='justify'>LogIQ brings together a wide set of capabilities for both customers and service engineers, designed to reduce friction at every stage of appliance maintenance. From intelligent ticket handling to AI-guided assistance, the system ensures faster resolutions, clearer communication, reduced operational cost and a simplified experience for everyone involved</P>
+
+### Engineer Application
 
 - **Manage Service Requests:** View all assigned tickets, check details, and accept or reject system-assigned requests
 - **Route Preview and Optimization:** Shows the optimal route and order of visit from the engineer’s current location
@@ -26,10 +30,7 @@
 - **ticket_management_agent**: Fetches assigned requests, tracks activity, updates progress and handles past records
 - **troubleshoot_agent**: Assists engineer with troubleshooting guidance, common ticket patterns, repair procedures
 
-
-## Customer App Features
-
-<P align='justify'>The web app is a <B>smart home appliance management platform</B> designed to streamline and enhance how customers interact with their household devices. The app provides a clean, intuitive interface, and several key features that make appliance ownership & support effortless. Some of the key aspects of the customer application are as described here:</P>
+### Customer Application
 
 - **Register Appliances:** Easily register new appliances with their model number, serial number, and purchase details
 - **Raise Service Requests:** Log & manage service requests for registered appliances, to get onsite professional help
@@ -78,7 +79,6 @@
 ![](assets/screenshots/gcp/cloud_sql_for_mysql.png)
 ![](assets/screenshots/gcp/cloud_storage.png)
 ![](assets/screenshots/gcp/firestore_appliance_specifications.png)
-![](assets/screenshots/gcp/cloud_run.png)
 
 
 ## Data Sources
@@ -91,28 +91,29 @@ To visually represent these products within the application, corresponding image
 
 For implementing **Retrieval-Augmented Generation (RAG)** workflow, publicly available service manuals were sourced and preprocessed. A service manual was linked to each sub-category to demonstrate **grounded** response generation. 
 
-#### For Customer Agent: 
+### For Customer Agent: 
+
 Service Manuals were parsed using Google Cloud **DocumentAI Layout Parser** and the parsed corpus was indexed in a **RagManaged Vector Store** to enable the RAG engine to generate contextual responses for appliance troubleshooting
 
-![](assets/screenshots/gcp/rag_engine_service_manuals_corpus.png)
 ![](assets/screenshots/gcp/rag_engine_product_page.png)
+![](assets/screenshots/gcp/rag_engine_service_manuals_corpus.png)
 
-#### For Engineer Agent:
+### For Engineer Agent:
+
 **File Search tool** is used for enabling RAG workflow. The File Search tool imports, chunks, and indexes service manual data into **File Search Stores**, enabling fast retrieval of relevant information at runtime. All responses include **citations**.
 
 
 ## Sample Interactions
 
-#### Engineer Agent
+### Engineer Agent
 
 ![](assets/screenshots/chat/engineer_agent/chat_homepage.png)
 ![](assets/screenshots/chat/engineer_agent/pending_tickets_summary_chat.png)
 ![](assets/screenshots/chat/engineer_agent/ticket_details_chat.png)
 ![](assets/screenshots/chat/engineer_agent/troubleshoot_chat.png)
 
-#### Customer Agent
+### Customer Agent
 
-![](assets/readme_assets/logiq_support.png)
 ![](assets/readme_assets/product_enquiry_1.png)
 ![](assets/readme_assets/product_enquiry_2.png)
 ![](assets/readme_assets/product_enquiry_3.png)
@@ -121,5 +122,87 @@ Service Manuals were parsed using Google Cloud **DocumentAI Layout Parser** and 
 To view examples of multiturn conversations for agents in the customer support agent team check [assets/screenshots](https://github.com/thisisashwinraj/logiq-smart-appliance-management/tree/main/assets/screenshots/chat)
 
 
+## Setup and Installation
+
+To run the streamlit application locally, clone the GitHub repository into your local system using the below command:
+
+```bash
+git clone https://github.com/thisisashwinraj/logiq-smart-appliance-management.git
+```
+
+Next, install the required dependencies using ```uv```. This command reads the ```pyproject.toml```  and installs the required dependencies into the virtual environment. On the first run, this command will create a managed virtual environment.
+
+```bash
+uv sync
+```
+
+If you're using the default virtual environment, you need to first activate this environment using the below command:
+
+```bash
+source .venv/bin/activate
+```
+
+Next, initialize the environment variables by renaming ```.env.example``` file to ```.env``` and update it with your own values:
+
+```bash
+cp .env.example .env
+```
+
+After this, setup the cloud SQL, cloud storage, and firestore databases as per the defined convention in the ```database``` folder. You may use the ```initialize_database``` script to create all databases with default configuration in a single click
+
+Next you need to create OAuth 2.0 credentials in the GCP Console. Start by navigating to the [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent) in the Google Cloud Console. Click ```Get Started```, and provide the app information. For the ```audience```, choose **Internal** if you are using Google Workspace or **External** for a personal account and enter your contact information. Click ```Create```
+
+After the OAuth consent screen is ready, select ```Clients``` from the left-hand menu and click on ```Create Client```. Select ```Web application``` as the **authentication type** and add ```http://localhost:8501/oauth2callback``` to **authorised redirect URIs**. Click ```Create```. Once done, retrieve ```client_id``` and ```client_secret``` from the console and update ```secrets.toml```.
+
+Once done, run the streamlit clients for the **customer** and **engineer** applications locally with the following commands:
+
+```bash
+streamlit run customer_app.py
+streamlit run engineer_app.py
+```
+
+
+## Deploy to Cloud Run With Docker
+
+To deploy your applications to **Cloud Run** using **Docker**, start by building the ```Docker image``` from the root directory:
+```
+docker build -t logiq-app .
+```
+
+Once the build completes, run the container locally to validate the deployment and ensure the service start correctly:
+```
+docker run -p 8501:8501 -e DEV_MODE=true logiq-app
+```
+
+After confirming that the application works as expected, tag the image with the appropriate **Container Registry** path:
+```
+docker tag logiq-app gcr.io/logiq-project/logiq-app
+```
+
+Next, push the tagged image to GCR and once the image is available in GCR, deploy both applications to **Cloud Run**:
+```
+docker push gcr.io/logiq-project/logiq-app
+```
+
+```
+gcloud run deploy logiq-engineers
+    --image gcr.io/logiq-project/logiq-app
+    --platform managed
+    --allow-unauthenticated
+    --region us-central1
+    --project logiq-project
+```
+```
+gcloud run deploy logiq-customers
+    --image gcr.io/logiq-project/logiq-app
+    --platform managed
+    --allow-unauthenticated
+    --region us-central1
+    --project logiq-project
+    --set-env-vars APP_PATH=customer_app.py
+```
+![](assets/screenshots/gcp/cloud_run.png)
+
 ## Support and Feedback
+
 Contributions are always welcome from the community. If you have any **queries** or would like to **share any feedback**, please drop a line at thisisashwinraj@gmail.com. You can also connect with me over [LinkedIn](https://www.linkedin.com/in/thisisashwinraj/) or [X (previously Twitter)](https://x.com/thisisashwinraj)
