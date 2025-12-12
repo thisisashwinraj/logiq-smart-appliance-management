@@ -650,6 +650,26 @@ class QueryEngineers:
         )
         return conn
 
+    def fetch_engineer_id_by_email(self, email):
+        pool = sqlalchemy.create_engine(
+            "mysql+pymysql://",
+            creator=self._get_connection,
+        )
+
+        with pool.connect() as db_conn:
+            query = sqlalchemy.text(
+                "SELECT engineer_id FROM engineers WHERE email = :email"
+            )
+
+            result = db_conn.execute(
+                query, parameters={"email": email}
+            ).fetchone()
+
+            if result is None:
+                return None
+
+            return result[0]
+
     def check_engineer_exists_by_email(self, email):
         pool = sqlalchemy.create_engine(
             "mysql+pymysql://",
