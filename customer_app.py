@@ -2194,10 +2194,10 @@ if __name__ == "__main__":
     )
 
     if not st.user or not st.user.is_logged_in:
-        _, login_col, _ = st.columns([2.82, 3, 2.82], vertical_alignment="top")
+        _, login_col, _ = st.columns(3, vertical_alignment="top")
 
         with login_col:
-            st.markdown("<BR>", unsafe_allow_html=True)
+            st.markdown("<BR>"*2, unsafe_allow_html=True)
             st.write(" ")
 
             with st.container(border=False):
@@ -2213,20 +2213,23 @@ if __name__ == "__main__":
                         """,
                 ):
                     st.write(" ")
-                    colx, _, _ = st.columns(
-                        [1, 1.15, 1.15], vertical_alignment="center"
+                    _, colx, _ = st.columns(
+                        [1.25, 0.8, 1.25], vertical_alignment="center"
                     )
 
-                    colx.image("assets/avatars/animojis/ms_penguin.jpeg")
+                    colx.space(1)
+                    colx.image("assets/logos/logiq_logo.png")
 
-                    st.markdown("<H3>Welcome Back</H3>", unsafe_allow_html=True)
+                    st.markdown("<center><H3>Welcome Back</H3></center>", unsafe_allow_html=True)
                     st.markdown(
-                        f"<font color='{st.session_state.themes[st.session_state.themes['current_theme']]['theme.secondaryBackgroundColor']}'>Login to manage your appliances, view service requests and receive proactive maintenance tips, in a single click</font>",
+                        f"<center><font color='{st.session_state.themes[st.session_state.themes['current_theme']]['theme.secondaryBackgroundColor']}'>Login to manage your appliances, view service requests and receive proactive maintenance tips, in a single click</font></center>",
                         unsafe_allow_html=True,
                     )
 
+                    st.space(1)
+
                     if st.button(
-                        "Sign in with Google",
+                        "Sign In with Google",
                         type="primary",
                         width='stretch',
                     ):
@@ -2245,8 +2248,10 @@ if __name__ == "__main__":
                         width='stretch',
                     ):
                         dialog_attribution()
+                    st.space(1)
 
-                    st.markdown(" ", unsafe_allow_html=True)
+            st.markdown("<BR>"*2, unsafe_allow_html=True)
+            st.markdown("<center><font color='#D0D0D0'>LOGIQ CUSTOMER APP</font></center>", unsafe_allow_html=True)
 
         st.stop()
 
@@ -2278,7 +2283,7 @@ if __name__ == "__main__":
         fetch_and_cache_username_by_customer_email.clear()
 
     if st.session_state.customer_id:
-        with st.spinner("Loading..."):
+        with st.spinner("Setting things up..."):
             greeting = get_greetings(
                 is_ist=True,
                 session_id=st.session_state.current_session,
@@ -2427,7 +2432,7 @@ if __name__ == "__main__":
                 ):
                     register_new_appliance()
 
-            with ribbon_col_3:
+            with ribbon_col_4:
                 if st.button(
                     "",
                     icon=":material/refresh:",
@@ -2443,7 +2448,7 @@ if __name__ == "__main__":
                     st.session_state.themes = theme_bkp
                     st.rerun()
 
-            with ribbon_col_4:
+            with ribbon_col_3:
                 btn_face = (
                     st.session_state.themes["light"]["button_face"]
                     if st.session_state.themes["current_theme"] == "light"
