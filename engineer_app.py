@@ -1489,7 +1489,94 @@ if st.session_state.themes["refreshed"] == False:
 
 
 if __name__ == "__main__":
-    st.session_state.engineer_id = "ENGR8T90450"  # For testing purposes only
+    if not st.user or not st.user.is_logged_in:
+        _, login_col, _ = st.columns(3, vertical_alignment="top")
+
+        with login_col:
+            st.markdown("<BR>"*2, unsafe_allow_html=True)
+            st.write(" ")
+
+            with st.container(border=False):
+                with stylable_container(
+                    key="_sign_in_with_google_container",
+                    css_styles=f"""
+                        {{
+                            background-color: {st.session_state.themes[st.session_state.themes["current_theme"]]["cardColor"]};
+                            border: 1px solid {st.session_state.themes[st.session_state.themes["current_theme"]]["containerBoundaryColor"]};;
+                            border-radius: 0.6rem;
+                            padding: calc(1em - 1px);
+                        }}
+                        """,
+                ):
+                    st.write(" ")
+                    _, colx, _ = st.columns(
+                        [1.25, 0.8, 1.25], vertical_alignment="center"
+                    )
+
+                    colx.space(1)
+                    colx.image("assets/logos/logiq_logo.png")
+
+                    st.markdown("<center><H3>Welcome Back</H3></center>", unsafe_allow_html=True)
+                    st.markdown(
+                        f"<center><font color='{st.session_state.themes[st.session_state.themes['current_theme']]['theme.secondaryBackgroundColor']}'>Login to view your daily service tasks, track job updates in real time, and streamline on-site resolutions</font></center>",
+                        unsafe_allow_html=True,
+                    )
+
+                    st.space(1)
+
+                    if st.button(
+                        "Sign In with Google",
+                        type="primary",
+                        width='stretch'
+                    ):
+                        st.login("google")
+
+                    sac.divider(
+                        align="center",
+                        color=st.session_state.themes[
+                            st.session_state.themes["current_theme"]
+                        ]["containerBoundaryColor"],
+                    )
+
+                    if st.button(
+                        "Credits and Attribution",
+                        type="secondary",
+                        width='stretch',
+                    ):
+                        dialog_attribution()
+                    st.space(1)
+
+            st.markdown("<BR>"*2, unsafe_allow_html=True)
+            st.markdown("<center><font color='#D0D0D0'>LOGIQ ENGINEER APP</font></center>", unsafe_allow_html=True)
+            
+        st.stop()
+
+    auth_exception_flag = False
+
+    @st.cache_data(show_spinner=False)
+    def fetch_and_cache_engineer_id_by_email(session_id):
+        try:
+            query_engineers = QueryEngineers()
+
+            if hasattr(st.user, "email"):
+                engineer_id = query_engineers.fetch_engineer_id_by_email(
+                    st.user.email
+                )
+                return engineer_id
+            else:
+                return None
+
+        except Exception as error:
+            auth_exception_flag = True
+            return None
+
+    st.session_state.engineer_id = fetch_and_cache_engineer_id_by_email(
+        session_id=st.session_state.session_id
+    )
+
+    if auth_exception_flag:
+        fetch_and_cache_engineer_id_by_email.clear()
+
     if st.session_state.engineer_id:
         @st.cache_data(show_spinner=False)
         def get_engineer_details(session_id, full_details=False):
@@ -1516,6 +1603,10 @@ if __name__ == "__main__":
                         icon="grid",
                     ),
                     sac.MenuItem(
+                        "View Requests",
+                        icon="inboxes",
+                    ),
+                    sac.MenuItem(
                         "LogIQ Chatbot",
                         icon="chat-square-text",
                     ),
@@ -1528,7 +1619,7 @@ if __name__ == "__main__":
                 ]["alertColor"],
             )
 
-            sidebar_container = st.container(height=376, border=False)
+            sidebar_container = st.container(height=335, border=False)
 
         if selected_menu_item == "My Dashboard":
             onsite_service_request_collection = OnsiteServiceRequestCollection()
@@ -1672,6 +1763,16 @@ if __name__ == "__main__":
                     icon=":material/logout:",
                     help="Logout"
                 ):
+                    previous_theme = "dark"
+                    tdict = st.session_state.themes["dark"]
+
+                    for vkey, vval in tdict.items():
+                        if vkey.startswith("theme"):
+                            st._config.set_option(vkey, vval)
+
+                    st.session_state.themes["refreshed"] = False
+                    st.session_state.themes["current_theme"] = "light"
+
                     st.session_state.clear()
                     st.cache_data.clear()
                     st.cache_resource.clear()
@@ -2183,7 +2284,10 @@ if __name__ == "__main__":
                                     }}
                                     """,
                             ):
-                                cola, colb, colc = st.columns([0.75, 2.71, 1.5])
+                                cola, colb, colc = st.columns(
+                                    [0.75, 2.71, 1.5], 
+                                    vertical_alignment="center"
+                                )
 
                                 with cola:
                                     st.image(
@@ -2194,7 +2298,10 @@ if __name__ == "__main__":
                                     )
 
                                 with colb:
-                                    colx, coly = st.columns([20, 0.01])
+                                    colx, coly = st.columns(
+                                        [20, 0.01], 
+                                        vertical_alignment="center"
+                                    )
 
                                     with colx:
                                         st.markdown(
@@ -2205,7 +2312,7 @@ if __name__ == "__main__":
 
                                         st.markdown(
                                             f"""
-                                            <P >
+                                            <P class="p-service-request-request-id-serial-number">
                                                 {service_request.get('appliance_details').get('sub_category')} • {service_request.get('request_id')}
                                             </P>
                                             """,
@@ -2220,6 +2327,7 @@ if __name__ == "__main__":
                                             """,
                                             unsafe_allow_html=True,
                                         )
+                                        st.write(" ")
 
                                 with colc:
                                     st.markdown("<BR>", unsafe_allow_html=True)
@@ -2238,7 +2346,10 @@ if __name__ == "__main__":
                                     )
 
                                     st.write(" ")
-                                    colx, coly = st.columns([0.9, 3])
+                                    colx, coly, colz = st.columns(
+                                        [0.6, 0.6, 2], 
+                                        vertical_alignment="bottom"
+                                    )
 
                                     with colx:
                                         if st.button(
@@ -2253,7 +2364,56 @@ if __name__ == "__main__":
                                                 service_request,
                                             )
 
-                                    with coly:
+                                    if coly.button(
+                                        "",
+                                        icon=":material/location_on:",
+                                        width='stretch',
+                                        key=f"_edit_service_request_{service_request.get('request_id')}"
+                                    ):
+                                        query_engineers = QueryEngineers()
+
+                                        engineer_address_data = query_engineers.fetch_engineer_details_by_id(
+                                            st.session_state.engineer_id,
+                                            [
+                                                "street",
+                                                "city",
+                                                "district",
+                                                "state",
+                                                "zip_code",
+                                            ],
+                                        )
+
+                                        engineer_address = f"""{
+                                            engineer_address_data.get("street")}, {
+                                            engineer_address_data.get("city")}, {
+                                            engineer_address_data.get("district")}, {
+                                            engineer_address_data.get("state")} - {
+                                            engineer_address_data.get("zip_code")}"""
+
+                                        customer_address = f"""{
+                                            service_request.get("address").get("street")}, {
+                                            service_request.get("address").get("city")}, {
+                                            service_request.get("address").get("state")} - {
+                                            service_request.get("address").get("zipcode")}"""
+                                    
+                                        try:
+                                            display_directions_to_customer_location(
+                                                engineer_address,
+                                                customer_address,
+                                                service_request.get(
+                                                    "customer_contact"
+                                                ).get("phone_number"),
+                                                service_request.get(
+                                                    "customer_contact"
+                                                ).get("email"),
+                                            )
+
+                                        except Exception as error:
+                                            st.toast(
+                                                "Location services are currently unavailable"
+                                            )
+
+                                    with colz:
                                         if st.button(
                                             "View Details",
                                             icon=":material/page_info:",
@@ -2550,7 +2710,7 @@ if __name__ == "__main__":
                     if st.button(
                         "",
                         icon=":material/logout:",
-                        help="Log Out",
+                        help="Logout",
                         width='stretch',
                     ):
                         previous_theme = "dark"
@@ -2567,7 +2727,8 @@ if __name__ == "__main__":
                         st.cache_data.clear()
                         st.cache_resource.clear()
 
-                        st.rerun()
+                        st.logout()
+                        st.stop()
 
             if request_id_to_view:
                 with st.container(border=False):
@@ -3147,34 +3308,31 @@ if __name__ == "__main__":
 
                 st.write(" ")
                 st.write(" ")
-                st.markdown("<BR>"*5, unsafe_allow_html=True)
+                st.markdown("<BR>"*3, unsafe_allow_html=True)
                 #st.write(optimized_route)
 
-                section_1, _, section_2 = st.columns([1.1, 0.1, 0.9], vertical_alignment="center")
+                section_1, _, section_2 = st.columns(
+                    [1.1, 0.1, 0.9], 
+                    vertical_alignment="center"
+                )
 
                 with section_1:
-                    st.markdown("<BR>", unsafe_allow_html=True)
                     st.markdown(
-                        f"""
-                        <BR>
-                        <H1 class='h1-home-welcome-title'>
-                            Hello, {st.session_state.engineer_details.get("first_name")} {st.session_state.engineer_details.get("last_name")}
-                        </H1>
-                        """,
-                        unsafe_allow_html=True,
+                        "<H4>Recommended Resolution Order</H4>", 
+                        unsafe_allow_html=True
                     )
 
                     st.markdown(
                         """
-                        <H2 class='h1-home-welcome-subtitle'>
-                            Select a Request to View Details
-                        </H2><BR>
-                        """,
-                        unsafe_allow_html=True,
+                        <font color="#D4D4D4">
+                        The recommended sequence for handling service requests, 
+                        calculated based on the distance and priority. Learn 
+                        more about how we arrange these requests here
+                        </font>
+                        """, 
+                        unsafe_allow_html=True
                     )
-
-                with section_2:
-                    st.markdown("<H6>Recommended Resolution Order</H6>", unsafe_allow_html=True)
+                    st.write("---")
 
                     for route in optimized_route.get("optimized_route"):
                         with st.container(border=False):
@@ -3189,11 +3347,16 @@ if __name__ == "__main__":
                                     }}
                                     """,
                             ):
-                                colx, coly = st.columns([0.3, 2], vertical_alignment="center")
+                                colx, coly = st.columns(
+                                    [0.3, 2], 
+                                    vertical_alignment="center"
+                                )
 
                                 colx.image("assets/app_graphics/location_icon.png")
+                                
                                 coly.markdown(f"<P class='p-route-optimization-card'>Request Id: {route.get('request_id')}</P><B>{route.get('request_title')}</B>", unsafe_allow_html=True)
                                 coly.write(" ")
+                                
                                 st.space(1)
 
             st.markdown("<BR>", unsafe_allow_html=True)
@@ -3232,6 +3395,16 @@ if __name__ == "__main__":
                     icon=":material/logout:",
                     help="Logout"
                 ):
+                    previous_theme = "dark"
+                    tdict = st.session_state.themes["dark"]
+
+                    for vkey, vval in tdict.items():
+                        if vkey.startswith("theme"):
+                            st._config.set_option(vkey, vval)
+
+                    st.session_state.themes["refreshed"] = False
+                    st.session_state.themes["current_theme"] = "light"
+
                     st.session_state.clear()
                     st.cache_data.clear()
                     st.cache_resource.clear()
@@ -3365,186 +3538,38 @@ if __name__ == "__main__":
                     )
 
     else:
-        if "themes" not in st.session_state:
-            st.session_state.themes = {
-                "current_theme": "light",
-                "refreshed": True,
-                "light": {
-                    "theme.base": "dark",
-                    "theme.backgroundColor": "#131314",
-                    "theme.primaryColor": "#8AB4F8",
-                    "theme.secondaryBackgroundColor": "#18191B",
-                    "theme.textColor": "#EAE9FC",
-                    "cardColor": "#f9fafb",
-                    "containerColor": "#f0f2f6",
-                    "containerBoundaryColor": "rgba(229, 231, 235, 1)",
-                    "alertColor": "#3367D6",
-                    "button_face": ":material/dark_mode:",
-                },
-                "dark": {
-                    "theme.base": "light",
-                    "theme.backgroundColor": "#FFFFFF",
-                    "theme.primaryColor": "#3367D6",
-                    "theme.secondaryBackgroundColor": "#F1F3F4",
-                    "theme.textColor": "#040316",
-                    "cardColor": "#202124",
-                    "containerColor": "#18191B",
-                    "containerBoundaryColor": "rgba(49, 51, 63, 0.2)",
-                    "alertColor": "#8AB4F8",
-                    "button_face": ":material/light_mode:",
-                },
-            }
+        col1, col2 = st.columns([1, 3.5])
+        with col1:
+            sac.result(label='', description='', status=403)
 
-        try:
-            firebase_credentials = credentials.Certificate(
-                json.loads(st.secrets["FIREBASE_SERVICE_ACCOUNT_KEY"])
-            )
-            firebase_admin.initialize_app(firebase_credentials)
+        st.markdown("<BR>", unsafe_allow_html=True)
+        security_toast_message = "Please verify the username. If the issue persists, please contact support."
 
-        except Exception as error:
-            pass
+        sac.alert(
+            label="No engineer was found with this username.",
+            description=security_toast_message,
+            color="orange",
+            icon=True,
+        )
 
-        col_login_forum, col_image = st.columns(2)
+        bar = st.progress(0)
+        for i in range(100):
+            bar.progress(i + 1)
+            time.sleep(0.03)
 
-        with col_image:
-            st.write(" ")
+        previous_theme = "dark"
+        tdict = st.session_state.themes["dark"]
 
-            if st.session_state.themes["current_theme"] == "dark":
-                st.image("assets/app_graphics/welcome_banner_dark.png")
+        for vkey, vval in tdict.items():
+            if vkey.startswith("theme"):
+                st._config.set_option(vkey, vval)
 
-            else:
-                st.image("assets/app_graphics/welcome_banner_light.png")
+        st.session_state.themes["refreshed"] = False
+        st.session_state.themes["current_theme"] = "light"
 
-        with col_login_forum:
-            colx, _ = st.columns([1.15, 3.85])
-            colx.markdown("<BR>", unsafe_allow_html=True)
+        st.session_state.clear()
+        st.cache_data.clear()
+        st.cache_resource.clear()
 
-            if st.session_state.themes["current_theme"] == "dark":
-                try:
-                    colx.image(
-                        "assets/logos/logiq_logo_dark.png", 
-                        width='stretch'
-                    )
-                except: pass
-
-            else:
-                try:
-                    colx.image(
-                        "assets/logos/logiq_logo_light.png", 
-                        width='stretch'
-                    )
-                except: pass
-
-            st.markdown("<BR>" * 2, unsafe_allow_html=True)
-            st.markdown(
-                "<H2>Welcome to LogIQ!</H2>LogIn to access the Engineer Application. Authorized access by engineers only.",
-                unsafe_allow_html=True,
-            )
-
-            st.write(" ")
-            colx, _ = st.columns([8, 1])
-
-            email = bleach.clean(
-                colx.text_input(
-                    "Username",
-                    placeholder="Enter your username",
-                    label_visibility="collapsed",
-                )
-            )
-
-            password = bleach.clean(
-                colx.text_input(
-                    "Password",
-                    placeholder="Enter your password",
-                    type="password",
-                    label_visibility="collapsed",
-                )
-            )
-
-            col1, col2, _ = st.columns([1.5, 1, 0.1], vertical_alignment="top")
-            checkbox_remember_me = col1.checkbox("Remember me", value=True)
-
-            if col2.button(
-                label="Forgot Password?", width='stretch', type="tertiary"
-            ):
-                reset_password()
-
-            cola, colb, _ = st.columns([7.1, 0.9, 1])
-
-            button_login = cola.button(
-                "LogIn to the Engineer App", width='stretch', type="primary"
-            )
-
-            if colb.button(
-                "",
-                icon=":material/copyright:",
-                help="Attribution",
-                width='stretch',
-            ):
-                dialog_attribution()
-
-            if st.session_state.engineer_id is False:
-                colx, _ = st.columns([8, 1])
-
-                warning_message = colx.error(
-                    "Invalid Username or Password", icon=":material/error:"
-                )
-
-                time.sleep(3)
-                st.session_state.engineer_id = None
-
-                warning_message.empty()
-
-            if button_login:
-                email = email.lower()
-
-                try:
-                    api_key = st.secrets["FIREBASE_AUTH_WEB_API_KEY"]
-                    base_url = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
-
-                    if "@" not in email:
-                        username = email.upper()
-                        user = firebase_admin.auth.get_user(username)
-                        email = user.email
-
-                    query_engineers = QueryEngineers()
-                    engineer_exists = query_engineers.check_engineer_exists_by_email(
-                        email
-                    )
-
-                    if engineer_exists:
-                        data = {"email": email, "password": password}
-
-                        response = requests.post(
-                            base_url.format(api_key=api_key), json=data
-                        )
-
-                        if response.status_code == 200:
-                            st.toast("Logging you in to the engineer app")
-                            data = response.json()
-
-                            st.cache_data.clear()
-                            st.cache_resource.clear()
-
-                            st.session_state.engineer_id = (
-                                firebase_admin.auth.get_user_by_email(email).uid
-                            )
-                            st.rerun()
-
-                        else:
-                            st.session_state.engineer_id = False
-                            st.rerun()
-
-                    else:
-                        st.toast(
-                            "No engineer found with this username. Please check the username and try again."
-                        )
-
-                        st.session_state.engineer_id = False
-                        time.sleep(5)
-
-                        st.rerun()
-
-                except Exception as error:
-                    st.session_state.engineer_id = False
-                    st.rerun()
+        st.logout()
+        st.stop()
