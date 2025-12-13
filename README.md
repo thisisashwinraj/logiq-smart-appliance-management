@@ -131,6 +131,8 @@ cp .env.example .env
 
 After this, setup the cloud SQL, cloud storage, and firestore databases as per the defined convention in the ```database``` folder. You may use the ```initialize_database``` script to create all databases with default configuration in a single click
 
+![](assets/screenshots/gcp/iam_and_admin.png)
+
 Next you need to create OAuth 2.0 credentials in the GCP Console. Start by navigating to the [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent) in the Google Cloud Console. Click ```Get Started```, and provide the app information. For the ```audience```, choose **Internal** if you are using Google Workspace or **External** for a personal account and enter your contact information. Click ```Create```
 
 After the OAuth consent screen is ready, select ```Clients``` from the left-hand menu and click on ```Create Client```. Select ```Web application``` as the **authentication type** and add ```http://localhost:8501/oauth2callback``` to **authorised redirect URIs**. Click ```Create```. Once done, retrieve ```client_id``` and ```client_secret``` from the console and update ```secrets.toml```.
