@@ -3,7 +3,7 @@
 
 <P align='justify'>Managing home appliances often involves juggling manuals, service calls and scattered records — a highly frustrating experience for many homeowners. With the rise of <B>Agentic AI</B> design framework, there's an opportunity to streamline and improve this process aptly through <B>intelligent systems</B> that can understand, guide, and act on behalf of the users</P>
 
-<P align='justify'>This project showcases LogIQ, a smart home appliance management tool that offers an AI-powered ecosystem for customers and service engineers to manage household appliances and service bookings. The engineer application is designed to support field technicians with ticket management, navigation assistance, and AI-guided troubleshooting. Alongside this, the customer facing app enables users to manage their registered appliances, raise service requests, and access information about appliance care and maintenance. Users can interact with both the applications through the UI or they can switch to <B>AI Mode</B> for a guided, chat-based experience. Watch the complete LogIQ app demo <a href='https://github.com/thisisashwinraj/logiq-smart-appliance-management?tab=readme-ov-file#sample-interactions'>here</a></P>
+<P align='justify'>This project showcases LogIQ, a smart home appliance management tool that offers an AI-powered application for customers and service engineers to manage household appliances and service bookings. The engineer application is designed to support field technicians with ticket management, navigation assistance, and AI-guided troubleshooting. The customer application enables the end-users to manage their registered appliances, log service requests, inquire about latest products, and access information related to appliance care and maintenance through an agentic interface</P>
 
 
 ## Key Features
@@ -84,7 +84,7 @@
 ## Data Sources
 
 The appliance dataset used in this project is **entirely synthetic** and was generated for demonstration purposes. Brand names, descriptions, and other technical specifications were **fabricated using Gemini 2.5** to simulate realistic product metadata across various categories such as refrigerators, washers & dryers, gas ranges and microwave ovens. Such an approach allowed for consistent & scalable data creation without relying on any **proprietary** or **sensitive information**.
-
+ 
 To visually represent these products within the application, corresponding images were generated using **Imagen 4 on Vertex AI Studio**. These images were generated to closely match the appliance specifications created in the metadata.
 
 ## Retrieval-Augmented Generation (RAG) Workflows
@@ -101,25 +101,6 @@ Service Manuals were parsed using Google Cloud **DocumentAI Layout Parser** and 
 ### For Engineer Agent:
 
 **File Search tool** is used for enabling RAG workflow. The File Search tool imports, chunks, and indexes service manual data into **File Search Stores**, enabling fast retrieval of relevant information at runtime. All responses include **citations**.
-
-
-## Sample Interactions
-
-### Engineer Agent
-
-![](assets/screenshots/chat/engineer_agent/chat_homepage.png)
-![](assets/screenshots/chat/engineer_agent/pending_tickets_summary_chat.png)
-![](assets/screenshots/chat/engineer_agent/ticket_details_chat.png)
-![](assets/screenshots/chat/engineer_agent/troubleshoot_chat.png)
-
-### Customer Agent
-
-![](assets/readme_assets/product_enquiry_1.png)
-![](assets/readme_assets/product_enquiry_2.png)
-![](assets/readme_assets/product_enquiry_3.png)
-![](assets/readme_assets/product_enquiry_4.png)
-
-To view examples of multiturn conversations for agents in the customer support agent team check [assets/screenshots](https://github.com/thisisashwinraj/logiq-smart-appliance-management/tree/main/assets/screenshots/chat)
 
 
 ## Setup and Installation
@@ -153,6 +134,8 @@ After this, setup the cloud SQL, cloud storage, and firestore databases as per t
 Next you need to create OAuth 2.0 credentials in the GCP Console. Start by navigating to the [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent) in the Google Cloud Console. Click ```Get Started```, and provide the app information. For the ```audience```, choose **Internal** if you are using Google Workspace or **External** for a personal account and enter your contact information. Click ```Create```
 
 After the OAuth consent screen is ready, select ```Clients``` from the left-hand menu and click on ```Create Client```. Select ```Web application``` as the **authentication type** and add ```http://localhost:8501/oauth2callback``` to **authorised redirect URIs**. Click ```Create```. Once done, retrieve ```client_id``` and ```client_secret``` from the console and update ```secrets.toml```.
+
+![](assets/screenshots/gcp/oauth.png)
 
 Once done, run the streamlit clients for the **customer** and **engineer** applications locally with the following commands:
 
@@ -202,6 +185,26 @@ gcloud run deploy logiq-customers
     --set-env-vars APP_PATH=customer_app.py
 ```
 ![](assets/screenshots/gcp/cloud_run.png)
+
+
+## Sample Agent Interactions
+
+### Engineer Agent
+
+![](assets/screenshots/chat/engineer_agent/chat_homepage.png)
+![](assets/screenshots/chat/engineer_agent/pending_tickets_summary_chat.png)
+![](assets/screenshots/chat/engineer_agent/ticket_details_chat.png)
+![](assets/screenshots/chat/engineer_agent/troubleshoot_chat.png)
+
+### Customer Agent
+
+![](assets/readme_assets/product_enquiry_1.png)
+![](assets/readme_assets/product_enquiry_2.png)
+![](assets/readme_assets/product_enquiry_3.png)
+![](assets/readme_assets/product_enquiry_4.png)
+
+To view examples of multiturn conversations for agents in the customer support agent team check [assets/screenshots](https://github.com/thisisashwinraj/logiq-smart-appliance-management/tree/main/assets/screenshots/chat)
+
 
 ## Support and Feedback
 
